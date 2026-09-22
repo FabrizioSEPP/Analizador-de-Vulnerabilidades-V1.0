@@ -1,8 +1,8 @@
 import streamlit as st
 
+from models import history
 from models.sqli_model import SQLiModel
-from models.metrics import calcular_metricas_sqli
-from views.components import aviso
+from views.components import aviso, aviso_html
 from views.sqli_view import mostrar as mostrar_sqli
 
 
@@ -23,23 +23,16 @@ def ejecutar(url_input: str):
     status_text = st.empty()
 
     def sqli_callback(progreso, mensaje):
-        progress_bar.progress(progreso)
-        status_text.info(mensaje)
+        progress_bar.progress(min(max(progreso, 0.0), 1.0))
+        status_text.markdown(aviso_html("info", mensaje), unsafe_allow_html=True)
 
     scanner = SQLiModel()
     with st.spinner("Analizando vulnerabilidades..."):
         resultado = scanner.analizar(url_input, callback=sqli_callback)
 
+    history.guardar("sqli", url_input, resultado, st.session_state.get("current_user", ""))
+
     progress_bar.empty()
     status_text.empty()
     st.markdown("---")
     mostrar_sqli(resultado)
-
-    metricas = calcular_metricas_sqli(resultado)
-    if metricas["hallazgos_con_cvss"]:
-        st.markdown("### 📝 Explicación de Vulnerabilidades")
-        st.markdown("---")
-        for h in metricas["hallazgos_con_cvss"]:
-            st.markdown(f"**`{h['parametro']}`** — {h.get('nivel_riesgo', '')} (CVSS {h.get('cvss', 0)}):")
-            st.markdown(h.get("explicacion", "Sin explicación disponible"))
-            st.markdown("<br>", unsafe_allow_html=True)

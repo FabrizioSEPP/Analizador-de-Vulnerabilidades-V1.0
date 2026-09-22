@@ -54,6 +54,7 @@ webvuln/
 ├── app.py                      # Entry point (llama al controlador principal)
 ├── requirements.txt
 ├── README.md
+├── .env                        # Credenciales de Supabase (no se versiona)
 │
 ├── models/                     # MODELO — Datos y lógica de negocio
 │   ├── __init__.py
@@ -69,6 +70,9 @@ webvuln/
 │   ├── risk_score.py           # Puntuación de riesgo 0-100
 │   ├── remediation.py          # Guías de remediación
 │   ├── port_scanner.py         # Escaneo de puertos
+│   ├── auth_model.py           # Autenticación PBKDF2 contra Supabase
+│   ├── db.py                   # Cliente Supabase (service_role)
+│   ├── history.py              # Persistencia de análisis y hallazgos
 │   └── metrics.py              # Métricas CVSS y PGI
 │
 ├── views/                      # VISTA — Presentación y UI
@@ -77,6 +81,8 @@ webvuln/
 │   ├── sqli_view.py            # Dashboard SQLi + explicaciones de vulnerabilidades
 │   ├── load_view.py            # Dashboard de Prueba de Capacidad
 │   ├── audit_view.py           # Dashboard de Auditoría Unificada
+│   ├── login_view.py           # Pantalla de acceso (login / registro)
+│   ├── history_view.py         # Historial reciente en la barra lateral
 │   └── dashboard_view.py       # Generadores de gráficos (Plotly)
 │
 └── controllers/                # CONTROLADOR — Orquestación Model↔View
@@ -176,7 +182,7 @@ Rampa de concurrencia creciente con umbrales de degradación (tasa error >10%, l
 - `is_authenticated()` → verifica si hay sesión activa
 - `logout()` → cierra sesión y limpia estado
 - `get_current_user()` → retorna nombre del usuario actual
-- Almacena usuarios en `users.json` local
+- Usuarios almacenados en Supabase (tabla `app_users`)
 
 ---
 
@@ -300,3 +306,42 @@ docker run -d -p 80:80 vulnerables/web-dvwa
 ```
 
 > Para analizar estos laboratorios en `localhost` activa **🌐 Permitir red interna** en la barra lateral. Por defecto la app bloquea objetivos privados para evitar SSRF.
+
+---
+
+## 10. Base de datos (Supabase + RLS)
+
+La app persiste **usuarios** y el **historial de análisis con sus hallazgos** en Supabase. La base de datos es **obligatoria**: sin `SUPABASE_URL` / `SUPABASE_KEY` no se puede iniciar sesión.
+
+### 10.1 Esquema
+
+| Tabla | Contenido |
+|---|---|
+| `app_users` | Usuarios con hash **PBKDF2-HMAC-SHA256** + salt (login propio) |
+| `scans` | Un registro por análisis: módulo, URL, score, nivel, total de hallazgos, resumen `jsonb`, fecha |
+| `scan_findings` | Hallazgos individuales de cada análisis (tipo, parámetro, método, severidad, CVSS, evidencia, OWASP…) |
+
+Índices: `scans(username, created_at desc)` y `scan_findings(scan_id)`.
+
+### 10.2 Configuración
+
+1. Rellena tus credenciales en el archivo **`.env`** de la raíz:
+   ```env
+   SUPABASE_URL=https://tu-proyecto.supabase.co
+   SUPABASE_KEY=tu-service-role-key
+   ```
+   (También se admiten `st.secrets` / variables de entorno con los mismos nombres.)
+2. `pip install -r requirements.txt` (incluye `supabase>=2.0` y `python-dotenv>=1.0`).
+3. Arranca la app.
+
+La barra lateral indica **🗄️ Supabase conectado**; si falta la configuración, muestra **⚠️ Supabase sin configurar** y el login avisa.
+
+> ⚠️ Usa la clave **`service_role`** y **nunca** la expongas en el navegador. Vive solo en `.env`, que está en `.gitignore`.
+
+### 10.3 RLS (Row Level Security)
+
+El login es propio (PBKDF2), así que **no existe `auth.uid()`**. Por eso la política es:
+
+- **RLS habilitada** en las tres tablas.
+- **Sin políticas permisivas** para `anon` / `authenticated` → la API pública **no puede leer ni escribir nada**.
+- El backend de Streamlit (servidor de confianza) usa la **`service_role`**, que omite RLS.

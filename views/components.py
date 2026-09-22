@@ -410,15 +410,22 @@ def hero_header(url: str = "", modo: str = "", autorizado: bool = False):
     )
 
 
+_AVISO_ICONOS = {"info": "ℹ️", "success": "✅", "warning": "⚠️", "error": "⛔"}
+
+
+def aviso_html(tipo: str, mensaje: str) -> str:
+    """HTML del aviso, para usar también dentro de `st.empty()`."""
+    icono = _AVISO_ICONOS.get(tipo, "ℹ️")
+    return (
+        f'<div class="aviso aviso-{tipo}">'
+        f'<span class="aviso-ic">{icono}</span>'
+        f'<span>{_md_inline(mensaje)}</span></div>'
+    )
+
+
 def aviso(tipo: str, mensaje: str):
     """Mensaje con estilo propio que respeta el tema (info/success/warning/error)."""
-    iconos = {"info": "ℹ️", "success": "✅", "warning": "⚠️", "error": "⛔"}
-    st.markdown(
-        f'<div class="aviso aviso-{tipo}">'
-        f'<span class="aviso-ic">{iconos.get(tipo, "ℹ️")}</span>'
-        f'<span>{_md_inline(mensaje)}</span></div>',
-        unsafe_allow_html=True,
-    )
+    st.markdown(aviso_html(tipo, mensaje), unsafe_allow_html=True)
 
 
 def tabla(df):

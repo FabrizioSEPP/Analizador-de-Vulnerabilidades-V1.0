@@ -1,4 +1,5 @@
 import streamlit as st
+from models import db
 from models.auth_model import register, login
 from views.components import aviso, ui_theme_selector
 
@@ -34,6 +35,10 @@ CSS_LOGIN = """
 
 def mostrar():
     st.markdown(CSS_LOGIN, unsafe_allow_html=True)
+
+    if not db.esta_configurado():
+        aviso("warning", "Configura tu base de datos en el archivo **.env** "
+                         "(`SUPABASE_URL` y `SUPABASE_KEY`) para poder iniciar sesión.")
 
     _, centro, _ = st.columns([1, 1.25, 1])
     with centro:

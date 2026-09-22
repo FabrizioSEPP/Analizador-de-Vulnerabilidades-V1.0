@@ -1,7 +1,8 @@
 import streamlit as st
 
+from models import history
 from models.load_model import LoadModel
-from views.components import aviso
+from views.components import aviso, aviso_html
 from views.load_view import mostrar as mostrar_load
 
 
@@ -22,12 +23,14 @@ def ejecutar(url_input: str):
     status_text = st.empty()
 
     def load_callback(progreso, mensaje):
-        progress_bar.progress(progreso)
-        status_text.info(mensaje)
+        progress_bar.progress(min(max(progreso, 0.0), 1.0))
+        status_text.markdown(aviso_html("info", mensaje), unsafe_allow_html=True)
 
     tester = LoadModel()
     with st.spinner("Ejecutando prueba de carga..."):
         resultado = tester.analizar(url_input, callback=load_callback)
+
+    history.guardar("load", url_input, resultado, st.session_state.get("current_user", ""))
 
     progress_bar.empty()
     status_text.empty()

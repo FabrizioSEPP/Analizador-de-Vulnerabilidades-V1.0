@@ -1,11 +1,12 @@
 import streamlit as st
 import pandas as pd
 
+from models import history
 from models.http_utils import validar_url, normalizar_url
 from models.deep_audit import auditoria_profunda
 from models.phishing_ml import detectar_phishing
 from models.audit_consolidator import consolidar_auditoria
-from views.components import aviso, tabla
+from views.components import aviso, aviso_html, tabla, section_header
 from views.audit_view import mostrar as mostrar_audit
 
 
@@ -28,7 +29,7 @@ def ejecutar_audit_unificado(url_input: str):
 
     def callback(p, m):
         progress_bar.progress(min(max(p, 0.0), 1.0))
-        status_text.info(m)
+        status_text.markdown(aviso_html("info", m), unsafe_allow_html=True)
 
     callback(0.02, "Iniciando auditoría profunda...")
     try:
@@ -47,6 +48,8 @@ def ejecutar_audit_unificado(url_input: str):
     auditoria["phishing"] = phishing
     auditoria["deep_analysis"] = profundo
     auditoria["crawl"] = profundo
+
+    history.guardar("audit", url_input, auditoria, st.session_state.get("current_user", ""))
 
     callback(1.0, "Auditoría completada")
     progress_bar.empty()
@@ -75,9 +78,13 @@ def ejecutar_port_scan(url_input: str):
         status_text.empty()
         progress_bar.progress(1.0, "Escaneo completado")
 
-        st.markdown("### Puertos Expuestos")
-        st.markdown("---")
-        st.markdown(f"**Host:** {resultado['host']} | **IP:** {resultado['ip']} | **Puertos abiertos:** {resultado['total_puertos']}")
+        history.guardar("port", url_input, resultado, st.session_state.get("current_user", ""))
+
+        section_header("Puertos expuestos", "Resultado del escaneo TCP (1-1024)", "🔌")
+        st.markdown(
+            f"**Host:** {resultado['host']} · **IP:** {resultado['ip']} · "
+            f"**Puertos abiertos:** {resultado['total_puertos']}"
+        )
 
         if resultado["puertos"]:
             tabla(pd.DataFrame(resultado["puertos"]))

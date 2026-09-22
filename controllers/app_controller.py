@@ -2,6 +2,7 @@ import streamlit as st
 from controllers.sqli_controller import ejecutar as ejecutar_sqli
 from controllers.load_controller import ejecutar as ejecutar_load
 from controllers.audit_controller import ejecutar_audit_unificado, ejecutar_port_scan
+from models import db
 from models.auth_model import logout
 from views.components import (
     ui_sidebar, ui_authorization_check, ui_url_input_sidebar,
@@ -9,6 +10,7 @@ from views.components import (
     ui_audit_options, ui_theme_selector, hero_header, aviso, css_tema, CSS_STYLES,
 )
 from views.login_view import mostrar as mostrar_login
+from views.history_view import mostrar_historial
 
 
 def run():
@@ -33,12 +35,14 @@ def run():
         ui_theme_selector()
         st.markdown("---")
         st.markdown(f"👤 **{user}**")
+        st.caption("🗄️ Supabase conectado" if db.esta_configurado() else "⚠️ Supabase sin configurar")
         if st.button("🚪 Cerrar Sesión", use_container_width=True, key="logout_btn"):
             logout()
         st.markdown("---")
         autorizado = ui_authorization_check(False)
         ui_internal_network_toggle()
         ui_audit_options()
+        mostrar_historial(user)
         url_input = ui_url_input_sidebar(st.session_state.get("sidebar_url", ""))
         selected_mode = ui_navigation_buttons(
             st.session_state.get("selected_mode", "sqli"), autorizado

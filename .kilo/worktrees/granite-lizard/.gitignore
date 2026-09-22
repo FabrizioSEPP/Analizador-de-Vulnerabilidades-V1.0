@@ -1,6 +1,0 @@
-__pycache__/
-*.py[cod]
-users.json
-.venv/
-venv/
-.env
