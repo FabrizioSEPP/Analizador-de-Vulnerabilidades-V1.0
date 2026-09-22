@@ -253,24 +253,40 @@ CSS_STYLES = """
         -webkit-text-fill-color: var(--muted) !important;
         opacity: 1 !important;
     }
-    div[data-testid="stRadio"] div[role="radiogroup"] > label > div:first-child,
+    div[data-testid="stRadio"] [role="radiogroup"] label > div:first-child,
+    div[data-testid="stRadio"] label > div:first-child,
+    div[data-testid="stRadio"] [role="radio"],
     div[data-baseweb="radio"] > div:first-child {
         border-color: var(--muted) !important;
     }
-    div[data-testid="stCheckbox"] div[role="checkbox"],
+    div[data-testid="stCheckbox"] label > div:first-child,
+    div[data-testid="stCheckbox"] [role="checkbox"],
     div[data-baseweb="checkbox"] > div:first-child {
         border-color: var(--muted) !important;
     }
-    /* Pestañas */
+    /* Pestañas — Streamlit 1.63 usa React Aria: <div role="tab">, no <button>.
+       La inactiva se atenúa con opacidad, por eso hay que forzarla. */
+    div[data-testid="stTabs"] [role="tab"],
+    div[data-testid="stTabs"] [role="tab"] *,
+    div[data-testid="stTabs"] button[role="tab"],
+    div[data-testid="stTabs"] button[role="tab"] * {
+        opacity: 1 !important;
+    }
+    div[data-testid="stTabs"] [role="tab"],
+    div[data-testid="stTabs"] [role="tab"] p,
+    div[data-testid="stTabs"] [role="tab"] div,
     div[data-testid="stTabs"] button[role="tab"],
     div[data-testid="stTabs"] button[role="tab"] p {
         color: var(--muted) !important;
         -webkit-text-fill-color: var(--muted) !important;
     }
+    div[data-testid="stTabs"] [role="tab"][aria-selected="true"],
+    div[data-testid="stTabs"] [role="tab"][aria-selected="true"] p,
+    div[data-testid="stTabs"] [role="tab"][aria-selected="true"] div,
     div[data-testid="stTabs"] button[role="tab"][aria-selected="true"],
     div[data-testid="stTabs"] button[role="tab"][aria-selected="true"] p {
-        color: var(--text) !important;
-        -webkit-text-fill-color: var(--text) !important;
+        color: var(--primary) !important;
+        -webkit-text-fill-color: var(--primary) !important;
     }
     /* Expander */
     div[data-testid="stExpander"] summary,
@@ -299,8 +315,6 @@ CSS_STYLES = """
         overflow: hidden;
     }
     div[data-testid="stExpander"] summary:hover { color: var(--primary); }
-    button[role="tab"] { color: var(--muted); font-weight: 600; }
-    button[role="tab"][aria-selected="true"] { color: var(--text) !important; }
     div[data-testid="stDataFrame"] { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
 
     div[data-testid="stAlert"] {
