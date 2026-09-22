@@ -184,18 +184,111 @@ CSS_STYLES = """
         border-color: var(--crit);
     }
 
-    /* -------------------------------------------------------------- Inputs */
+    /* ------------------------------------------ Inputs (nativos BaseWeb)
+       BaseWeb fija los colores según el tema base y usa -webkit-text-fill-color;
+       por eso hay que forzarlos con !important para que sigan al tema elegido. */
     div[data-testid="stTextInput"] input,
     div[data-testid="stNumberInput"] input,
-    div[data-testid="stTextArea"] textarea {
+    div[data-testid="stTextArea"] textarea,
+    div[data-baseweb="input"] input,
+    div[data-baseweb="base-input"] input {
         background: var(--surface-2) !important;
         color: var(--text) !important;
+        -webkit-text-fill-color: var(--text) !important;
+        caret-color: var(--text) !important;
         border: 1px solid var(--border) !important;
         border-radius: var(--radius-sm) !important;
     }
-    div[data-testid="stTextInput"] input:focus {
+    div[data-testid="stTextInput"] input::placeholder,
+    div[data-testid="stNumberInput"] input::placeholder,
+    div[data-testid="stTextArea"] textarea::placeholder,
+    div[data-baseweb="input"] input::placeholder {
+        color: var(--muted) !important;
+        -webkit-text-fill-color: var(--muted) !important;
+        opacity: 1 !important;
+    }
+    div[data-testid="stTextInput"] input:focus,
+    div[data-testid="stNumberInput"] input:focus {
         border-color: var(--primary) !important;
         box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25) !important;
+    }
+    /* Contenedor y adornos (borde/fondo + botón de ver contraseña) */
+    div[data-baseweb="input"],
+    div[data-baseweb="base-input"],
+    div[data-baseweb="textarea"],
+    div[data-testid="stTextInputRootElement"] {
+        background: var(--surface-2) !important;
+        border-color: var(--border) !important;
+        border-radius: var(--radius-sm) !important;
+    }
+    div[data-testid="stTextInput"] button,
+    button[data-testid="stTextInputRevealPassword"] {
+        background: transparent !important;
+        color: var(--muted) !important;
+    }
+    div[data-testid="stTextInput"] button svg,
+    button[data-testid="stTextInputRevealPassword"] svg {
+        fill: var(--muted) !important;
+        color: var(--muted) !important;
+    }
+
+    /* ------------------------- Etiquetas y textos de widgets nativos */
+    div[data-testid="stWidgetLabel"] p,
+    div[data-testid="stWidgetLabel"] label,
+    label[data-testid="stWidgetLabel"],
+    div[data-testid="stRadio"] p,
+    div[data-testid="stRadio"] label,
+    div[data-testid="stCheckbox"] p,
+    div[data-testid="stCheckbox"] label,
+    div[data-testid="stSlider"] p,
+    div[data-testid="stSelectbox"] p,
+    div[data-testid="stSelectbox"] label {
+        color: var(--text) !important;
+        -webkit-text-fill-color: var(--text) !important;
+        opacity: 1 !important;
+    }
+    div[data-testid="stCaptionContainer"],
+    div[data-testid="stCaptionContainer"] p {
+        color: var(--muted) !important;
+        -webkit-text-fill-color: var(--muted) !important;
+        opacity: 1 !important;
+    }
+    div[data-testid="stRadio"] div[role="radiogroup"] > label > div:first-child,
+    div[data-baseweb="radio"] > div:first-child {
+        border-color: var(--muted) !important;
+    }
+    div[data-testid="stCheckbox"] div[role="checkbox"],
+    div[data-baseweb="checkbox"] > div:first-child {
+        border-color: var(--muted) !important;
+    }
+    /* Pestañas */
+    div[data-testid="stTabs"] button[role="tab"],
+    div[data-testid="stTabs"] button[role="tab"] p {
+        color: var(--muted) !important;
+        -webkit-text-fill-color: var(--muted) !important;
+    }
+    div[data-testid="stTabs"] button[role="tab"][aria-selected="true"],
+    div[data-testid="stTabs"] button[role="tab"][aria-selected="true"] p {
+        color: var(--text) !important;
+        -webkit-text-fill-color: var(--text) !important;
+    }
+    /* Expander */
+    div[data-testid="stExpander"] summary,
+    div[data-testid="stExpander"] summary p,
+    div[data-testid="stExpander"] summary span,
+    div[data-testid="stExpander"] summary div {
+        color: var(--text) !important;
+        -webkit-text-fill-color: var(--text) !important;
+    }
+    /* Selects desplegables */
+    div[data-baseweb="select"] > div {
+        background: var(--surface-2) !important;
+        border-color: var(--border) !important;
+        color: var(--text) !important;
+    }
+    div[data-baseweb="menu"] li,
+    div[data-baseweb="popover"] li {
+        color: var(--text) !important;
     }
 
     /* --------------------------------------------- Expander / tabs / tabla */
