@@ -134,12 +134,46 @@ CSS_STYLES = """
     div[data-testid="stAppViewContainer"] > .main .block-container,
     .block-container { padding-top: 1.1rem; padding-bottom: 3.5rem; max-width: 1320px; }
 
-    /* ------------------------------------------------------------- Sidebar */
-    div[data-testid="stSidebar"] {
-        background: linear-gradient(180deg, var(--sidebar-1) 0%, var(--sidebar-2) 100%);
-        border-right: 1px solid var(--border);
+    /* ------------------------------------------------------------- Sidebar
+       Streamlit aplica el color con CSS-in-JS (no variables), así que hay que
+       forzarlo con !important y dejar transparentes los contenedores internos. */
+    div[data-testid="stSidebar"],
+    section[data-testid="stSidebar"],
+    .stSidebar {
+        background: linear-gradient(180deg, var(--sidebar-1) 0%, var(--sidebar-2) 100%) !important;
+        border-right: 1px solid var(--border) !important;
+    }
+    div[data-testid="stSidebar"] > div,
+    div[data-testid="stSidebarContent"],
+    div[data-testid="stSidebarHeader"],
+    div[data-testid="stSidebarUserContent"],
+    div[data-testid="stSidebarNav"] {
+        background: transparent !important;
     }
     div[data-testid="stSidebar"] hr { border-color: var(--border); margin: 14px 0; }
+    div[data-testid="stSidebarCollapseButton"] button,
+    div[data-testid="stSidebarCollapseButton"] svg {
+        color: var(--muted) !important;
+        fill: var(--muted) !important;
+    }
+    /* Texto del sidebar con los tokens del tema (nativos usan colores horneados) */
+    div[data-testid="stSidebar"] p,
+    div[data-testid="stSidebar"] label,
+    div[data-testid="stSidebar"] span,
+    div[data-testid="stSidebar"] li,
+    div[data-testid="stSidebar"] summary,
+    div[data-testid="stSidebar"] h1,
+    div[data-testid="stSidebar"] h2,
+    div[data-testid="stSidebar"] h3,
+    div[data-testid="stSidebar"] h4 {
+        color: var(--text) !important;
+        -webkit-text-fill-color: var(--text) !important;
+    }
+    div[data-testid="stSidebar"] [data-testid="stCaptionContainer"],
+    div[data-testid="stSidebar"] [data-testid="stCaptionContainer"] p {
+        color: var(--muted) !important;
+        -webkit-text-fill-color: var(--muted) !important;
+    }
 
     /* ------------------------------------------------------------- Botones */
     .stButton > button, .stFormSubmitButton > button, .stDownloadButton > button {
