@@ -71,7 +71,7 @@ def grafico_confianza_por_parametro(hallazgos: list) -> go.Figure:
 
 def grafico_radar_cobertura(hallazgos: list) -> go.Figure:
     c = colores_actuales()
-    tipos = ["error-based", "boolean-based blind", "time-based blind"]
+    tipos = ["error-based", "boolean-based blind", "time-based blind", "union-based"]
     valores = [1 if any(h.get("tipo") == t for h in hallazgos) else 0 for t in tipos]
     fig = go.Figure()
     fig.add_trace(go.Scatterpolar(

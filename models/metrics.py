@@ -9,6 +9,7 @@ CVSS_VECTORS = {
     "error-based": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
     "boolean-based blind": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H",
     "time-based blind": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H",
+    "union-based": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
 }
 
 _AV = {"N": 0.85, "A": 0.62, "L": 0.55, "P": 0.2}
@@ -147,7 +148,7 @@ def calcular_metricas_sqli(resultado: dict) -> dict:
 
     cvss_promedio = round(sum(cvss_list) / len(cvss_list), 2) if cvss_list else 0.0
     confianza_promedio = round(sum(h.get("confianza", 0) for h in hallazgos) / len(hallazgos), 1)
-    total_vectores = 3
+    total_vectores = 4
     cobertura = (len(tipos_probados) / total_vectores) * 100
     riesgo_global = "Crítica" if cvss_promedio >= 8.0 else "Alta" if cvss_promedio >= 6.0 else "Media" if cvss_promedio >= 3.0 else "Baja"
 

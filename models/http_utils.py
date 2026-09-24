@@ -100,12 +100,18 @@ def hacer_peticion(
     timeout: int = 8,
     method: str = "GET",
     data: dict | None = None,
+    headers: dict | None = None,
+    pausa: float = 0.0,
+    json: dict | None = None,
 ) -> tuple[requests.Response | None, float, str]:
     try:
+        if pausa:
+            time.sleep(pausa)  # modo cortés: no saturar al objetivo
         start = time.perf_counter()
         metodo = (method or "GET").upper()
         response = _get_session().request(
-            metodo, url, params=params, data=data, timeout=timeout, allow_redirects=True
+            metodo, url, params=params, data=data, json=json, timeout=timeout,
+            allow_redirects=True, headers=headers,
         )
         elapsed = time.perf_counter() - start
         return response, elapsed, ""
@@ -115,3 +121,29 @@ def hacer_peticion(
         return None, 0, "Error de conexión: no se pudo conectar al servidor."
     except requests.exceptions.RequestException as e:
         return None, 0, f"Error de solicitud: {e}"
+
+
+# Solo firmas ESPECÍFICAS de WAF. Frases genéricas como "access denied" o
+# "request blocked" se quitaron a propósito: aparecen en 403 legítimos y hacían
+# que el análisis se detuviera sin necesidad (falsos negativos).
+_FIRMAS_WAF = [
+    "cloudflare", "akamai", "imperva", "incapsula", "sucuri", "f5 networks",
+    "mod_security", "modsecurity", "web application firewall", "attention required",
+]
+
+
+def es_bloqueo(response) -> bool:
+    """True si la respuesta parece un bloqueo/limitación (WAF o rate limit).
+
+    Solo se mira el CUERPO, no las cabeceras: `Server: cloudflare` aparece en
+    TODAS las respuestas de un sitio tras Cloudflare (no solo al bloquear), así
+    que mirar cabeceras provocaba "bloqueos" falsos y detenía el análisis.
+    """
+    if response is None:
+        return False
+    if response.status_code == 429:
+        return True
+    if response.status_code in (401, 403, 406, 418, 451, 503):
+        cuerpo = (response.text or "")[:5000].lower()
+        return any(firma in cuerpo for firma in _FIRMAS_WAF)
+    return False

@@ -681,6 +681,94 @@ def ui_internal_network_toggle() -> bool:
     )
 
 
+def parse_headers(texto: str) -> dict:
+    """Convierte 'Nombre: valor' por línea en un diccionario de cabeceras."""
+    headers = {}
+    for linea in (texto or "").splitlines():
+        if ":" in linea:
+            clave, valor = linea.split(":", 1)
+            if clave.strip():
+                headers[clave.strip()] = valor.strip()
+    return headers
+
+
+def ui_sqli_options():
+    """Opciones del escáner SQLi: cabeceras de sesión, cortesía y presupuesto."""
+    with st.expander("🔧 Opciones de inyección SQL", expanded=False):
+        st.text_area(
+            "Cabeceras extra (una por línea: `Nombre: valor`)",
+            key="sqli_headers", height=90,
+            placeholder="Cookie: sesion=abc123\nAuthorization: Bearer ...",
+            help="Necesario para objetivos que requieren sesión o autenticación.",
+        )
+        st.slider(
+            "Pausa entre peticiones (s)", min_value=0.0, max_value=1.0,
+            step=0.1, key="sqli_pausa",
+            help="Modo cortés: retardo entre peticiones para no saturar el objetivo.",
+        )
+        st.number_input(
+            "Máximo de puntos a analizar", min_value=1, max_value=50,
+            step=1, key="sqli_max_objetivos",
+            help="Menos puntos = análisis más rápido.",
+        )
+        st.number_input(
+            "Tiempo máximo (s)", min_value=0, max_value=7200,
+            step=60, key="sqli_tiempo_maximo",
+            help="Detiene el análisis al alcanzarlo. 0 = sin límite.",
+        )
+        st.number_input(
+            "Máximo de peticiones", min_value=50, max_value=50000,
+            step=50, key="sqli_max_peticiones",
+            help="Límite de seguridad; al alcanzarlo se detiene el análisis.",
+        )
+        st.checkbox(
+            "Probar cabeceras (User-Agent, Referer, X-Forwarded-For)",
+            key="sqli_probar_cabeceras",
+            help="Algunas apps registran o usan estas cabeceras en consultas SQL.",
+        )
+        st.checkbox(
+            "Probar cuerpo JSON (APIs / SPA)",
+            key="sqli_probar_json",
+            help="Envía los campos del formulario también como JSON.",
+        )
+        st.checkbox(
+            "Extraer datos (versión, BD, usuario, tablas) al detectar UNION",
+            key="sqli_extraer",
+            help="Prueba de extracción acotada para evidenciar impacto.",
+        )
+        st.checkbox(
+            "Descubrir endpoints de API (JS / SPA)",
+            key="sqli_probar_apis",
+            help="Analiza el JavaScript en busca de rutas /api, /rest, etc.",
+        )
+        st.checkbox(
+            "Usar navegador headless (SPA con JS)",
+            key="sqli_usar_navegador",
+            help="Requiere Playwright instalado (`playwright install chromium`).",
+        )
+        st.checkbox(
+            "Probar SQLi de segundo orden (intrusivo: escribe datos)",
+            key="sqli_segundo_orden",
+            help="Inyecta en formularios y luego revisa otras páginas buscando errores SQL. "
+                 "Heurístico y MODIFICA datos del objetivo; úsalo solo con autorización.",
+        )
+        st.checkbox(
+            "Confirmación estricta (menos falsos positivos)",
+            key="sqli_confirmar",
+            help="Desactívalo si el objetivo es inestable y crees que se están perdiendo hallazgos.",
+        )
+        st.checkbox(
+            "Detener ante WAF / rate-limit",
+            key="sqli_abortar_waf",
+            help="Si se desactiva, sigue probando aunque el objetivo devuelva bloqueos.",
+        )
+    return (
+        parse_headers(st.session_state.get("sqli_headers", "")),
+        st.session_state.get("sqli_pausa", 0.0),
+        int(st.session_state.get("sqli_max_peticiones", 1500)),
+    )
+
+
 def ui_audit_options():
     with st.expander("⚙️ Opciones de auditoría profunda", expanded=False):
         st.slider(

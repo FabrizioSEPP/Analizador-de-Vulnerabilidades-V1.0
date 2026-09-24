@@ -36,6 +36,11 @@ def mostrar(resultado: dict):
     if resultado.get("detalle"):
         aviso("info", resultado["detalle"])
 
+    if resultado.get("diagnostico"):
+        with st.expander("🧪 Diagnóstico (por qué se descartó u omitió algo)", expanded=False):
+            for n in resultado["diagnostico"]:
+                st.markdown(f"- {n}")
+
     if resultado["vulnerable"]:
         aviso("error", "🚨 **¡Vulnerabilidad de inyección SQL detectada!**")
     elif objetivos:
@@ -93,6 +98,7 @@ def _mostrar_hallazgos_detallados(metricas: dict):
             "error-based": "Error-Based",
             "boolean-based blind": "Boolean-Based Blind",
             "time-based blind": "Time-Based Blind",
+            "union-based": "UNION-Based",
         }.get(h.get("tipo", ""), h.get("tipo", ""))
 
         with st.expander(f"Hallazgo #{i} — {tipo_label} en `{h.get('parametro', '')}` · {nivel} · CVSS {cvss}", expanded=False):
@@ -121,6 +127,11 @@ def _mostrar_hallazgos_detallados(metricas: dict):
                     st.markdown(f"**Evidencia:** {h.get('evidencia')}")
                 if h.get("codigo_http"):
                     st.markdown(f"**Código HTTP base:** {h.get('codigo_http')}")
+                if h.get("datos_extraidos"):
+                    st.markdown(f"**Datos extraídos:** `{h['datos_extraidos']}`")
+                if h.get("reproducir"):
+                    st.markdown("**Reproducir (curl):**")
+                    st.code(h["reproducir"], language="bash")
 
     df_data = []
     for h in metricas["hallazgos_con_cvss"]:

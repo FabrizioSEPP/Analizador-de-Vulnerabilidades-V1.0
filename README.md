@@ -55,11 +55,20 @@ webvuln/
 ├── requirements.txt
 ├── README.md
 ├── .env                        # Credenciales de Supabase (no se versiona)
+├── tests/
+│   ├── vuln_app.py             # Servidor local DELIBERADAMENTE vulnerable (simulado)
+│   ├── vuln_sqlite_app.py      # App local con SQLite REAL y SQL concatenado
+│   ├── test_sqli.py            # Pruebas contra el servidor simulado
+│   ├── test_sqli_real_db.py    # Pruebas contra SQLite real
+│   ├── test_sqli_falsos_positivos.py  # Batería anti falsos positivos
+│   ├── test_sqli_segundo_orden.py     # SQLi de segundo orden (heurístico)
+│   └── scan_real_targets.py    # Escaneo opt-in de objetivos públicos (requiere red)
 │
 ├── models/                     # MODELO — Datos y lógica de negocio
 │   ├── __init__.py
 │   ├── http_utils.py           # Cliente HTTP compartido (GET/POST)
 │   ├── discovery.py            # Descubre parámetros en enlaces y formularios (GET/POST)
+│   ├── api_discovery.py        # Descubre endpoints de API (JS estático + navegador headless)
 │   ├── sqli_model.py           # Lógica de detección de Inyección SQL
 │   ├── load_model.py           # Lógica de prueba de capacidad/saturación
 │   ├── deep_analysis.py        # Análisis de una página (HTTPS, headers, cookies, formularios)
@@ -156,9 +165,23 @@ Orquesta el crawler + `analizar_profundamente` en cada página y añade comproba
 Los hallazgos repetidos entre páginas se deduplican y se agrega un *score* 0-100.
 
 ### `models/sqli_model.py` — Escáner de Inyección SQL
-**Técnicas:** error-based, boolean-based blind, time-based blind, aplicadas a cada objetivo descubierto (GET o POST).
-- Límite por defecto: **12 puntos de inyección** por análisis (configurable vía `SQLiModel(max_objetivos=N)`).
-- Cada hallazgo indica parámetro, método HTTP, origen (URL/enlace/formulario) y endpoint.
+**Técnicas:** error-based, boolean-based blind, time-based blind y **UNION-based** (enumera el nº de columnas), aplicadas a cada objetivo descubierto (GET o POST), incluyendo **variantes de evasión** (comentarios/tabuladores como separador, mayúsculas mezcladas).
+
+- Límite por defecto: **12 puntos de inyección** por análisis (`max_objetivos`).
+- **Ubicaciones del punto de inyección**: query (`query`), cuerpo de formulario (`body`), **cuerpo JSON** (`json`) y **cabeceras** (`header`: `User-Agent`, `Referer`, `X-Forwarded-For`).
+- **Extracción acotada**: al detectar UNION prueba a obtener la **versión del motor** como evidencia de impacto.
+- **SQLite sin `SLEEP`**: time-based mediante **CTE recursiva** que consume CPU.
+- **Descubrimiento de APIs (SPA)**: analiza el JavaScript (`fetch`/`axios`, rutas `/api`, `/rest`, `/graphql`…) y, **opcionalmente con navegador headless** (Playwright), captura las peticiones XHR/fetch reales, incluidos los campos del cuerpo JSON.
+- **SQLi de segundo orden (heurístico, intrusivo)**: inyecta en formularios, **estabiliza** el estado con un valor benigno, y luego revisa otras páginas del mismo host buscando **errores SQL nuevos** (puede dar ruido; MODIFICA datos). Opt-in vía `SQLiModel(segundo_orden=True)`.
+- Cada hallazgo indica parámetro, método HTTP, origen, endpoint y un **comando `curl` para reproducirlo**.
+- Opciones pensadas para **cualquier URL**:
+  - `headers` → cabeceras personalizadas (`Cookie`, `Authorization`, `User-Agent`…) para objetivos con sesión.
+  - `pausa` → retardo entre peticiones (modo cortés).
+  - `max_peticiones` → presupuesto máximo; al agotarse, se detiene.
+  - `baseline_runs` / `confirmar` → precisión (muestras base y confirmación de hallazgos).
+- **Seguridad de uso:** detecta **WAF / rate-limit** (429 y páginas de WAF en el cuerpo). Por defecto **no** detiene el análisis ante un bloqueo (opción *Detener ante WAF* para activarlo).
+- **Opciones integradas por defecto:** al pulsar *Ejecutar análisis* en modo **Inyección SQL** ya se aplican automáticamente: cabeceras, cuerpo JSON, endpoints de API, navegador headless (si Playwright está), extracción UNION y confirmación estricta. Solo el **segundo orden** (intrusivo) queda desactivado y requiere activación explícita. Todo sigue siendo configurable en **🔧 Opciones de inyección SQL**.
+- **Rendimiento:** el boolean se **corta si no hay señal tras 80 pares**; por defecto analiza **8 puntos**, con **tiempo máximo de 600 s** y **4000 peticiones** (configurable). El detalle del resultado indica el motivo real de parada (**presupuesto**, **tiempo** o **WAF**), en lugar de atribuirlo siempre al WAF.
 
 Cada hallazgo incluye:
 - `cvss`: Puntuación CVSS v3.1 (0-10)
@@ -345,3 +368,129 @@ El login es propio (PBKDF2), así que **no existe `auth.uid()`**. Por eso la pol
 - **RLS habilitada** en las tres tablas.
 - **Sin políticas permisivas** para `anon` / `authenticated` → la API pública **no puede leer ni escribir nada**.
 - El backend de Streamlit (servidor de confianza) usa la **`service_role`**, que omite RLS.
+
+---
+
+## 11. Pruebas del escáner SQLi
+
+`tests/vuln_app.py` levanta un **servidor local deliberadamente vulnerable** (solo stdlib, uso local) con:
+
+| Ruta | Comportamiento simulado |
+|---|---|
+| `/buscar?id=1` | vulnerable: error-based, boolean-based y time-based |
+| `/union?id=1` | vulnerable: UNION (2 columnas) + extracción de versión |
+| `/cabecera?id=1` | vulnerable vía cabecera `User-Agent` |
+| `/api_json` (POST) | vulnerable en cuerpo **JSON** |
+| `/error200?id=1` | vulnerable: filtra el **error SQL con HTTP 200** (+ UNION con firma ANSI) |
+| `/login` (POST) | vulnerable: error-based en el campo `usuario` |
+| `/auth?id=1` | requiere cabecera `X-Token` (prueba de cabeceras de sesión) |
+| `/estatico?id=1` | contiene `PostgreSQL` / `sql syntax` legítimos (anti falso positivo) |
+| `/seguro?id=1` | parámetro no vulnerable |
+| `/tiempo?id=1` | solo time-based (`SLEEP`) |
+| `/dinamico?id=1` | contenido volátil (anti falso positivo) |
+| `/reflectante?id=1` | refleja la entrada, sin SQL (anti falso positivo) |
+| `/error500?id=1` | falla siempre con 500 (anti falso positivo) |
+| `/estado?id=1` | cambia de estado con entradas sospechosas (anti falso positivo) |
+| `/json?id=1` | JSON que refleja la entrada (anti falso positivo) |
+| `/waf?id=1`, `/waf_agresivo?id=1` | WAF que **bloquea** (rate-limit / Cloudflare) |
+| `/waf_falso?id=1` | WAF que devuelve **contenido aleatorio** con HTTP 200 |
+| `/lento?id=1` | servidor naturalmente lento (anti falso positivo) |
+| `/lento_aleatorio?id=1` | tarpit: latencia aleatoria sin SQL (anti falso positivo) |
+
+Ejecutar la batería (no requiere dependencias extra):
+
+```bash
+python tests/test_sqli.py
+```
+
+Verifica:
+- **error-based** detecta el parámetro invulnerable… y **no** marca la página con texto SQL legítimo ni el parámetro seguro (resta de línea base).
+- **boolean-based** detecta la diferencia TRUE/FALSE y **no** da falso positivo en parámetro seguro, página volátil ni endpoint de eco.
+- **time-based** detecta el retardo inducido.
+- **POST** se detecta en formularios.
+- **UNION-based** enumera el número de columnas correcto.
+- **Cabeceras personalizadas** permiten analizar un objetivo que exige sesión.
+- **WAF / rate-limit**: se detecta el bloqueo y se **aborta** sin falsos positivos.
+- Cada hallazgo incluye un **comando `curl` de reproducción**.
+- El **descubrimiento** encuentra parámetros de enlaces (GET) y campos de formulario (POST).
+- `SQLiModel.analizar()` extremo a extremo marca la página como vulnerable.
+
+Para probar manualmente contra el servidor de laboratorio:
+
+```bash
+python tests/vuln_app.py     # imprime la URL; úsala como objetivo en la app
+```
+
+> ⚠️ Estos servidores son intencionadamente inseguros. Ejecútalos **solo en local** y nunca los expongas a Internet.
+
+### 11.1 Contra base de datos real (SQLite)
+
+`tests/vuln_sqlite_app.py` es una app con **SQLite real** y consultas construidas por concatenación, así que los errores, el comportamiento booleano y los tiempos son auténticos (no simulados).
+
+```bash
+python tests/test_sqli_real_db.py
+```
+
+Comprueba: error-based (mensaje real del motor), boolean-based (1 fila vs 25 filas), POST real, y que **no** hay falso positivo en un endpoint de eco.
+
+### 11.2 Contra URLs reales de Internet (opt-in)
+
+```bash
+python tests/scan_real_targets.py     # requiere red
+```
+
+Escanea una lista **curada** de sitios públicos vulnerables por diseño y sitios benignos, con *modo cortés* (payloads reducidos, 2 puntos por objetivo, sin `SLEEP`). Sirve para verificar detección y, sobre todo, **ausencia de falsos positivos**.
+
+> 🚫 **No** lo uses contra sitios de terceros sin autorización: es ilegal. La lista está limitada a objetivos de práctica y sitios benignos.
+
+### 11.3 Refuerzos de precisión del escáner
+
+Aplicados en `models/sqli_model.py` (afectan a la app principal, que usa el modelo con estos valores por defecto):
+
+- **Línea base real** en boolean-based (usa el valor original, no vacío).
+- **Normalización de contenido volátil**: se ignoran tokens CSRF, UUID, hashes y timestamps antes de comparar respuestas.
+- **Medida de "ruido" de la página**: varias muestras base; si la página cambia demasiado sola, se descarta el análisis (evita falsos positivos en páginas dinámicas).
+- **Señal real TRUE vs FALSE** y descarte de respuestas **5xx**; sin falso positivo en endpoints de eco o con mucho HTML y poco texto.
+- **Pasada de confirmación** por hallazgo (error-based y boolean-based): se repite el payload ganador y, si no se reproduce, se descarta.
+- **Time-based más estricto**: **control intercalado** (compara el payload con una petición normal del mismo momento para descartar latencia aleatoria/tarpit), consistencia entre ejecuciones (≥ 0.8), retardo ≥ 60 % del solicitado y **confirmación** (repite el retardo).
+- **Corte temprano** al reunir evidencia (de 196 pares a ~1).
+- **Neutralización del eco**: se decodifican entidades HTML (`&#x27;` → `'`) y se elimina de la respuesta el valor inyectado antes de comparar, para no confundir un buscador que refleja la entrada con una inyección.
+- **Anti-reflejo en UNION**: si la respuesta contiene la consulta reflejada (aunque venga escapada), se descarta.
+- **Reproducibilidad**: en la confirmación, el mismo payload debe devolver la misma respuesta. Descarta WAF que devuelven **contenido aleatorio** con HTTP 200 (parecerían una diferencia TRUE/FALSE sin serlo).
+- Nuevos parámetros: `SQLiModel(baseline_runs=2, confirmar=True)`.
+
+### 11.4 Verificación de falsos positivos
+
+```bash
+python tests/test_sqli_falsos_positivos.py
+```
+
+Todos los endpoints son **no vulnerables** pero imitan trampas habituales; el escáner debe dar **0 hallazgos**:
+
+| Endpoint | Trampa |
+|---|---|
+| `/estatico` | contiene `PostgreSQL` / `sql syntax` legítimos |
+| `/seguro` | respuesta siempre igual |
+| `/dinamico` | contenido volátil en cada petición |
+| `/reflectante` | refleja la entrada (buscador) |
+| `/error500` | falla siempre con HTTP 500 |
+| `/estado` | cambia de estado (200→404) con entradas sospechosas |
+| `/json` | respuesta JSON que refleja la entrada |
+| `/waf_falso` | WAF que devuelve contenido falso aleatorio con HTTP 200 |
+| `/lento` | servidor lento de forma natural |
+| `/lento_aleatorio` | tarpit: latencia aleatoria sin SQL (probabilístico) |
+
+Resultado: **12/12 sin falsos positivos** (estable en 3 ejecuciones; el tarpit era el caso más duro), manteniendo la detección (**24/24** y **7/7** en las suites anteriores) y **0 hallazgos** en los objetivos reales de `scan_real_targets.py`.
+
+### 11.5 SQLi de segundo orden (heurístico)
+
+```bash
+python tests/test_sqli_segundo_orden.py
+```
+
+- SQLite real: guarda un comentario y lo usa sin parametrizar en `/listar` → el detector **encuentra el error SQL disparado en otra página** (3/3).
+- Servidor sin almacenamiento → **sin falso positivo**.
+
+> ⚠️ Es **intrusivo** (escribe datos) y heurístico. Actívalo solo con autorización: `SQLiModel(segundo_orden=True)` o la casilla *“Probar SQLi de segundo orden”*.
+
+> Para el navegador headless: `pip install playwright && playwright install chromium` (dependencia **opcional**; si no está, se usa solo el análisis estático de JS).
