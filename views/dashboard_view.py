@@ -32,6 +32,40 @@ def _tema(fig: go.Figure) -> go.Figure:
     return fig
 
 
+def _tema_carga(fig: go.Figure, leyenda_inferior: bool = False) -> go.Figure:
+    fig = _tema(fig)
+    fig.update_layout(
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font=dict(color="#e6edf7"),
+        title=dict(font=dict(color="#e6edf7")),
+        margin=dict(t=82, b=104 if leyenda_inferior else 40, l=48, r=24),
+        legend=dict(
+            bgcolor="rgba(0,0,0,0)",
+            font=dict(color="#e6edf7"),
+            **({"orientation": "h", "yanchor": "top", "y": -0.25,
+                "xanchor": "center", "x": 0.5} if leyenda_inferior else {}),
+        ),
+    )
+    fig.update_xaxes(
+        gridcolor="#12305a", zerolinecolor="#12305a", linecolor="#12305a",
+        tickfont=dict(color="#e6edf7"), title_font=dict(color="#e6edf7"),
+    )
+    fig.update_yaxes(
+        gridcolor="#12305a", zerolinecolor="#12305a", linecolor="#12305a",
+        tickfont=dict(color="#e6edf7"), title_font=dict(color="#e6edf7"),
+    )
+    fig.update_traces(
+        selector={"type": "indicator"},
+        title={"text": "Grado de salud (PGI)", "font": {"size": 14, "color": "#e6edf7"}},
+        number={"font": {"color": "#e6edf7"}},
+        gauge={"axis": {
+            "tickcolor": "#e6edf7", "tickfont": {"color": "#e6edf7"},
+        }, "bordercolor": "#12305a"},
+    )
+    return fig
+
+
 def grafico_severidad_donub(por_severidad: dict) -> go.Figure:
     c = colores_actuales()
     labels = list(por_severidad.keys())
@@ -159,9 +193,9 @@ def grafico_latencia_percentiles(niveles: list) -> go.Figure:
     fig.update_layout(
         title="Latencia por percentil vs concurrencia",
         xaxis_title="Concurrencia (peticiones simultáneas)", yaxis_title="Latencia (s)",
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0),
+        legend=dict(orientation="h", yanchor="top", y=-0.25, xanchor="center", x=0.5),
     )
-    return _tema(fig)
+    return _tema_carga(fig, leyenda_inferior=True)
 
 
 def grafico_throughput(niveles: list) -> go.Figure:
@@ -172,20 +206,20 @@ def grafico_throughput(niveles: list) -> go.Figure:
     fig.add_trace(go.Bar(x=df["concurrencia"], y=df["throughput"], marker_color=c["primary"], marker_line_width=0))
     fig.update_layout(title="Throughput (peticiones/segundo) por nivel",
                       xaxis_title="Concurrencia", yaxis_title="Peticiones / segundo")
-    return _tema(fig)
+    return _tema_carga(fig)
 
 
 def grafico_error_pie(tipo_error: dict) -> go.Figure:
     c = colores_actuales()
     if not tipo_error:
-        return _tema(go.Figure())
+        return _tema_carga(go.Figure())
     fig = go.Figure(data=[go.Pie(
         labels=list(tipo_error.keys()), values=list(tipo_error.values()),
         marker=dict(colors=[c["crit"], c["high"], c["med"], c["ok"], c["muted"]]), hole=0.55,
         textinfo="label+percent", textfont=dict(size=11),
     )])
     fig.update_layout(title="Distribución de errores", showlegend=False)
-    return _tema(fig)
+    return _tema_carga(fig)
 
 
 def grafico_gauge_pgi(pgi: float, salud: str) -> go.Figure:
@@ -207,7 +241,7 @@ def grafico_gauge_pgi(pgi: float, salud: str) -> go.Figure:
             ],
         },
     ))
-    return _tema(fig)
+    return _tema_carga(fig)
 
 
 def grafico_barra_estado(niveles: list) -> go.Figure:
@@ -223,4 +257,4 @@ def grafico_barra_estado(niveles: list) -> go.Figure:
     fig.update_layout(title="Tasa de error por nivel de concurrencia",
                       xaxis_title="Concurrencia", yaxis_title="%",
                       legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0))
-    return _tema(fig)
+    return _tema_carga(fig)
