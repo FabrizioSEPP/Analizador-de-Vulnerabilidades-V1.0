@@ -54,23 +54,41 @@ def run():
     user = st.session_state.get("current_user", "")
     with st.sidebar:
         ui_sidebar()
-        ui_theme_selector()
-        st.markdown("---")
-        st.markdown(f"👤 **{user}**")
-        st.caption("🗄️ Supabase conectado" if db.esta_configurado() else "⚠️ Supabase sin configurar")
-        if st.button("🚪 Cerrar Sesión", use_container_width=True, key="logout_btn"):
-            logout()
-        st.markdown("---")
+        autorizado = st.session_state.get("autorizado", False)
+        selected_mode = ui_navigation_buttons(
+            st.session_state.get("selected_mode", "sqli"), autorizado
+        )
         autorizado = ui_authorization_check(False)
         ui_internal_network_toggle()
         ui_sqli_options()
         ui_audit_options()
         mostrar_historial(user)
-        url_input = ui_url_input_sidebar(st.session_state.get("sidebar_url", ""))
-        selected_mode = ui_navigation_buttons(
-            st.session_state.get("selected_mode", "sqli"), autorizado
+        with st.container(key="sidebar-user-card"):
+            st.markdown(f"👤 **{user}**")
+            st.caption("🗄️ Supabase conectado" if db.esta_configurado() else "⚠️ Supabase sin configurar")
+            if st.button("🚪 Cerrar Sesión", use_container_width=True, key="logout_btn"):
+                logout()
+        with st.container(key="sidebar-theme-compact"):
+            ui_theme_selector()
+        st.markdown(
+            '<div class="sidebar-system-status">'
+            '<span class="sidebar-system-status-dot"></span>'
+            '<span>Sistema activo - Todos los módulos operativos</span></div>',
+            unsafe_allow_html=True,
         )
-        ejecutar = ui_execute_button(autorizado, url_input)
+
+    with st.container(key="main-toolbar"):
+        toolbar_columns = st.columns([6, 2, 2], vertical_alignment="center")
+        with toolbar_columns[0]:
+            url_input = ui_url_input_sidebar(st.session_state.get("sidebar_url", ""))
+        with toolbar_columns[1]:
+            ejecutar = ui_execute_button(autorizado, url_input)
+        with toolbar_columns[2]:
+            st.markdown(
+                '<div class="system-status"><span class="system-status-dot"></span>'
+                '<span>Sistema activo</span></div>',
+                unsafe_allow_html=True,
+            )
 
     hero_header(url_input, selected_mode, autorizado)
 
