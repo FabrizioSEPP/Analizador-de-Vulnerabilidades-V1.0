@@ -6,10 +6,11 @@ funcionando de forma efímera).
 """
 
 from models import db
+from models.i18n import t
 
 
 def guardar(modulo: str, url: str, resultado: dict, username: str):
-    if not username or not db.esta_configurado():
+    if not username or not db.hay_base_datos():
         return None
 
     try:
@@ -55,7 +56,8 @@ def guardar(modulo: str, url: str, resultado: dict, username: str):
             puertos = resultado.get("puertos", [])
             hallazgos = [{
                 "tipo": "puerto_abierto",
-                "descripcion": f"Puerto {p.get('puerto')} abierto ({p.get('servicio', 'desconocido')})",
+                "descripcion": t("Puerto {} abierto ({})").format(
+                    p.get("puerto"), p.get("servicio", t("desconocido"))),
                 "severidad": "info",
                 "metodo": p.get("protocolo"),
                 "evidencia": f"{resultado.get('ip', '')}:{p.get('puerto')}",

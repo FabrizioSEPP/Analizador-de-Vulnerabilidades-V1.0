@@ -1,14 +1,15 @@
 from datetime import datetime
 from models.deep_analysis import analizar_profundamente
+from models.i18n import t, es_o_en
 
 
 SEVERIDAD_PONDERADA = {"critica": 95, "alta": 75, "media": 55, "baja": 25, "info": 10}
 
 OWASP_MAP = {
-    "A01": "Broken Access Control", "A02": "Configuracion de Seguridad Incorrecta",
-    "A03": "Inyeccion", "A04": "Diseño Inseguro", "A05": "Vulnerabilidades Desactualizadas",
-    "A06": "Fallas de Integridad", "A07": "Fallas de Autenticacion",
-    "A08": "Fallos de Seguridad de Datos", "A09": "Fallas en Registro y Monitoreo",
+    "A01": "Broken Access Control", "A02": "Security Misconfiguration",
+    "A03": "Injection", "A04": "Insecure Design", "A05": "Vulnerable and Outdated Components",
+    "A06": "Integrity Failures", "A07": "Identification and Authentication Failures",
+    "A08": "Software and Data Integrity Failures", "A09": "Security Logging and Monitoring Failures",
     "A10": "SSRF",
 }
 
@@ -71,7 +72,7 @@ def consolidar_auditoria(resultados: dict, deep_result: dict | None = None) -> d
             score = e.get("score_riesgo", e.get("severidad_score", SEVERIDAD_PONDERADA.get(severidad, 50)))
             hallazgos_consolidados.append({
                 "modulo": modulo_nombre,
-                "descripcion": e.get("descripcion", e.get("tipo", "Hallazgo")),
+                "descripcion": e.get("descripcion", es_o_en("Hallazgo", "Finding")),
                 "evidencia": e.get("detalle", e.get("evidencia", "")),
                 "severidad": severidad,
                 "score": round(score, 1) if isinstance(score, (int, float)) else SEVERIDAD_PONDERADA.get(severidad, 50),

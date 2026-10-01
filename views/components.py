@@ -3,6 +3,8 @@ import re
 
 import streamlit as st
 
+from models.i18n import t, columna, valor
+
 # ---------------------------------------------------------------------------
 # Motor de temas. Dos paletas (clara/oscura) con los mismos nombres de token;
 # el CSS se escribe una sola vez con var(--token). "Sistema" usa
@@ -649,17 +651,20 @@ def section_header(titulo: str, subtitulo: str = "", icono: str = ""):
 
 
 def hero_header(url: str = "", modo: str = "", autorizado: bool = False):
+    from models.i18n import es_o_en
     modos = {
-        "sqli": "Inyección SQL", "load": "Prueba de Carga",
-        "audit": "Auditoría Unificada", "port": "Escaneo de Puertos",
+        "sqli": es_o_en("Inyección SQL", "SQL Injection"),
+        "load": es_o_en("Prueba de Carga", "Load Test"),
+        "audit": es_o_en("Auditoría Unificada", "Unified Audit"),
+        "port": es_o_en("Escaneo de Puertos", "Port Scan"),
     }
     modo_label = modos.get(modo, "—")
-    estado = "Autorizado" if autorizado else "Sin autorización"
+    estado = es_o_en("Autorizado", "Authorized") if autorizado else es_o_en("Sin autorización", "Not authorized")
     clase = "ok" if autorizado else "warn"
-    objetivo = _html.escape(url) if url else "sin objetivo"
+    objetivo = _html.escape(url) if url else es_o_en("sin objetivo", "no target")
     st.markdown(
         f'<div class="app-hero">'
-        f'<div><div class="hero-title">🛡️ Analizador de Vulnerabilidades Web</div>'
+        f'<div><div class="hero-title">🛡️ {es_o_en("Analizador de Vulnerabilidades Web", "Web Vulnerability Analyzer")}</div>'
         f'<div class="hero-sub">Pentesting ético · CVSS · PGI · OWASP</div></div>'
         f'<div class="hero-right">'
         f'<span class="pill pill-mode">🧭 {modo_label}</span>'
@@ -691,12 +696,12 @@ def aviso(tipo: str, mensaje: str):
 def tabla(df):
     """Tabla HTML propia: se adapta al tema claro/oscuro (st.dataframe no siempre)."""
     if df is None or len(df) == 0:
-        st.markdown('<div class="empty-state">Sin datos para mostrar.</div>', unsafe_allow_html=True)
+        st.markdown('<div class="empty-state">%s</div>' % t("Sin datos para mostrar."), unsafe_allow_html=True)
         return
-    cabeceras = "".join(f"<th>{_html.escape(str(c))}</th>" for c in df.columns)
+    cabeceras = "".join(f"<th>{_html.escape(columna(str(c)))}</th>" for c in df.columns)
     filas = []
     for _, fila in df.iterrows():
-        celdas = "".join(f"<td>{_html.escape(str(v))}</td>" for v in fila.tolist())
+        celdas = "".join(f"<td>{_html.escape(valor(v))}</td>" for v in fila.tolist())
         filas.append(f"<tr>{celdas}</tr>")
     st.markdown(
         f'<div class="table-wrap"><table class="data-table">'
@@ -706,12 +711,25 @@ def tabla(df):
     )
 
 
+def ui_language_selector():
+    st.markdown('<div class="side-label">🌐 Idioma / Language</div>', unsafe_allow_html=True)
+    st.radio(
+        "Idioma",
+        options=["es", "en"],
+        format_func=lambda k: "ES Español" if k == "es" else "EN English",
+        key="idioma",
+        horizontal=True,
+        label_visibility="collapsed",
+    )
+    return st.session_state.get("idioma", "es")
+
+
 def ui_theme_selector():
-    st.markdown('<div class="side-label">🎨 Tema</div>', unsafe_allow_html=True)
+    st.markdown('<div class="side-label">🎨 %s</div>' % t("Tema"), unsafe_allow_html=True)
     st.radio(
         "Tema",
         options=["sistema", "claro", "oscuro"],
-        format_func=lambda k: {"sistema": "🖥️ Sistema", "claro": "☀️ Claro", "oscuro": "🌙 Oscuro"}[k],
+        format_func=lambda k: {"sistema": t("🖥️ Sistema"), "claro": t("☀️ Claro"), "oscuro": t("🌙 Oscuro")}[k],
         key="tema",
         horizontal=True,
         label_visibility="collapsed",
@@ -743,35 +761,36 @@ def ui_sidebar():
 
 
 def ui_authorization_check(autorizado: bool) -> bool:
-    with st.expander("⚠️ Condiciones de uso", expanded=False):
+    with st.expander(t("⚠️ Condiciones de uso"), expanded=False):
         st.markdown(
-            """
-            - Solo usa esta herramienta contra sistemas que **poseas** o contra los
-              cuales tengas **autorización escrita explícita**.
-            - Escanear sistemas de terceros sin permiso puede ser **ilegal**.
-            - La prueba de carga tiene un techo máximo de concurrencia (50) para evitar
-              convertirte en una herramienta de denegación de servicio (DoS).
+            f"""
+            - {t("Solo usa esta herramienta contra sistemas que **poseas** o contra los "
+                  "cuales tengas **autorización escrita explícita**.")}
+            - {t("Escanear sistemas de terceros sin permiso puede ser **ilegal**.")}
+            - {t("La prueba de carga tiene un techo máximo de concurrencia (50) para evitar "
+                  "convertirte en una herramienta de denegación de servicio (DoS).")}
             """
         )
-        if st.button("✅ Confirmar autorización", type="primary", use_container_width=True, key="auth_btn"):
+        if st.button(t("✅ Confirmar autorización"), type="primary", use_container_width=True, key="auth_btn"):
             st.session_state.autorizado = True
             st.rerun()
     return st.session_state.get("autorizado", False)
 
 
 def ui_url_input_sidebar(current_url: str) -> str:
-    st.markdown('<div class="side-label">🎯 Objetivo</div>', unsafe_allow_html=True)
+    st.markdown('<div class="side-label">🎯 %s</div>' % t("Objetivo"), unsafe_allow_html=True)
     return st.text_input(
-        "URL objetivo",
+        t("URL objetivo"),
         value=current_url,
-        placeholder="ejemplo.com:8080 o https://dominio/ruta",
+        placeholder=t("ejemplo.com:8080 o https://dominio/ruta"),
         label_visibility="collapsed",
         key="sidebar_url",
     )
 
 
 def ui_navigation_buttons(current_mode: str, autorizado: bool) -> str:
-    st.markdown('<div class="side-label">🧭 Módulos de análisis</div>', unsafe_allow_html=True)
+    from models.i18n import es_o_en
+    st.markdown('<div class="side-label">🧭 %s</div>' % t("Módulos de análisis"), unsafe_allow_html=True)
     st.markdown(
         """
         <style>
@@ -839,10 +858,10 @@ def ui_navigation_buttons(current_mode: str, autorizado: bool) -> str:
     )
     cols = st.columns(2)
     labels = [
-        ("🔍 Inyección SQL", "sqli"),
-        ("⚡ Carga", "load"),
-        ("🛡️ Auditoría", "audit"),
-        ("🔌 Puertos", "port"),
+        (f"🔍 {es_o_en('Inyección SQL', 'SQL Injection')}", "sqli"),
+        (f"⚡ {es_o_en('Carga', 'Load')}", "load"),
+        (f"🛡️ {es_o_en('Auditoría', 'Audit')}", "audit"),
+        (f"🔌 {es_o_en('Puertos', 'Ports')}", "port"),
     ]
     for i, (label, mode_key) in enumerate(labels):
         with cols[i % 2]:
@@ -862,7 +881,7 @@ def ui_navigation_buttons(current_mode: str, autorizado: bool) -> str:
 def ui_execute_button(autorizado: bool, url_input: str):
     disabled = not autorizado or not url_input.strip()
     return st.button(
-        "▶  Ejecutar análisis",
+        f"▶ {t('Ejecutar análisis')}",
         type="primary", use_container_width=True,
         disabled=disabled, key="execute_btn",
     )
@@ -870,10 +889,10 @@ def ui_execute_button(autorizado: bool, url_input: str):
 
 def ui_internal_network_toggle() -> bool:
     return st.checkbox(
-        "🌐 Permitir red interna (localhost / privadas)",
+        t("🌐 Permitir red interna (localhost / privadas)"),
         key="permitir_privadas",
-        help="Necesario para laboratorios locales (DVWA, Juice Shop). "
-             "Déjalo desactivado para uso normal.",
+        help=t("Necesario para laboratorios locales (DVWA, Juice Shop). "
+               "Déjalo desactivado para uso normal."),
     )
 
 
@@ -890,73 +909,73 @@ def parse_headers(texto: str) -> dict:
 
 def ui_sqli_options():
     """Opciones del escáner SQLi: cabeceras de sesión, cortesía y presupuesto."""
-    with st.expander("🔧 Opciones de inyección SQL", expanded=False):
+    with st.expander(t("🔧 Opciones de inyección SQL"), expanded=False):
         st.text_area(
-            "Cabeceras extra (una por línea: `Nombre: valor`)",
+            t("Cabeceras extra (una por línea: `Nombre: valor`)"),
             key="sqli_headers", height=90,
             placeholder="Cookie: sesion=abc123\nAuthorization: Bearer ...",
-            help="Necesario para objetivos que requieren sesión o autenticación.",
+            help=t("Necesario para objetivos que requieren sesión o autenticación."),
         )
         st.slider(
-            "Pausa entre peticiones (s)", min_value=0.0, max_value=1.0,
+            t("Pausa entre peticiones (s)"), min_value=0.0, max_value=1.0,
             step=0.1, key="sqli_pausa",
-            help="Modo cortés: retardo entre peticiones para no saturar el objetivo.",
+            help=t("Modo cortés: retardo entre peticiones para no saturar el objetivo."),
         )
         st.number_input(
-            "Máximo de puntos a analizar", min_value=1, max_value=50,
+            t("Máximo de puntos a analizar"), min_value=1, max_value=50,
             step=1, key="sqli_max_objetivos",
-            help="Menos puntos = análisis más rápido.",
+            help=t("Menos puntos = análisis más rápido."),
         )
         st.number_input(
-            "Tiempo máximo (s)", min_value=0, max_value=7200,
+            t("Tiempo máximo (s)"), min_value=0, max_value=7200,
             step=60, key="sqli_tiempo_maximo",
-            help="Detiene el análisis al alcanzarlo. 0 = sin límite.",
+            help=t("Detiene el análisis al alcanzarlo. 0 = sin límite."),
         )
         st.number_input(
-            "Máximo de peticiones", min_value=50, max_value=50000,
+            t("Máximo de peticiones"), min_value=50, max_value=50000,
             step=50, key="sqli_max_peticiones",
-            help="Límite de seguridad; al alcanzarlo se detiene el análisis.",
+            help=t("Límite de seguridad; al alcanzarlo se detiene el análisis."),
         )
         st.checkbox(
-            "Probar cabeceras (User-Agent, Referer, X-Forwarded-For)",
+            t("Probar cabeceras (User-Agent, Referer, X-Forwarded-For)"),
             key="sqli_probar_cabeceras",
-            help="Algunas apps registran o usan estas cabeceras en consultas SQL.",
+            help=t("Algunas apps registran o usan estas cabeceras en consultas SQL."),
         )
         st.checkbox(
-            "Probar cuerpo JSON (APIs / SPA)",
+            t("Probar cuerpo JSON (APIs / SPA)"),
             key="sqli_probar_json",
-            help="Envía los campos del formulario también como JSON.",
+            help=t("Envía los campos del formulario también como JSON."),
         )
         st.checkbox(
-            "Extraer datos (versión, BD, usuario, tablas) al detectar UNION",
+            t("Extraer datos (versión, BD, usuario, tablas) al detectar UNION"),
             key="sqli_extraer",
-            help="Prueba de extracción acotada para evidenciar impacto.",
+            help=t("Prueba de extracción acotada para evidenciar impacto."),
         )
         st.checkbox(
-            "Descubrir endpoints de API (JS / SPA)",
+            t("Descubrir endpoints de API (JS / SPA)"),
             key="sqli_probar_apis",
-            help="Analiza el JavaScript en busca de rutas /api, /rest, etc.",
+            help=t("Analiza el JavaScript en busca de rutas /api, /rest, etc."),
         )
         st.checkbox(
-            "Usar navegador headless (SPA con JS)",
+            t("Usar navegador headless (SPA con JS)"),
             key="sqli_usar_navegador",
-            help="Requiere Playwright instalado (`playwright install chromium`).",
+            help=t("Requiere Playwright instalado (`playwright install chromium`)."),
         )
         st.checkbox(
-            "Probar SQLi de segundo orden (intrusivo: escribe datos)",
+            t("Probar SQLi de segundo orden (intrusivo: escribe datos)"),
             key="sqli_segundo_orden",
-            help="Inyecta en formularios y luego revisa otras páginas buscando errores SQL. "
-                 "Heurístico y MODIFICA datos del objetivo; úsalo solo con autorización.",
+            help=t("Inyecta en formularios y luego revisa otras páginas buscando errores SQL. "
+                   "Heurístico y MODIFICA datos del objetivo; úsalo solo con autorización."),
         )
         st.checkbox(
-            "Confirmación estricta (menos falsos positivos)",
+            t("Confirmación estricta (menos falsos positivos)"),
             key="sqli_confirmar",
-            help="Desactívalo si el objetivo es inestable y crees que se están perdiendo hallazgos.",
+            help=t("Desactívalo si el objetivo es inestable y crees que se están perdiendo hallazgos."),
         )
         st.checkbox(
-            "Detener ante WAF / rate-limit",
+            t("Detener ante WAF / rate-limit"),
             key="sqli_abortar_waf",
-            help="Si se desactiva, sigue probando aunque el objetivo devuelva bloqueos.",
+            help=t("Si se desactiva, sigue probando aunque el objetivo devuelva bloqueos."),
         )
     return (
         parse_headers(st.session_state.get("sqli_headers", "")),
@@ -966,16 +985,16 @@ def ui_sqli_options():
 
 
 def ui_audit_options():
-    with st.expander("⚙️ Opciones de auditoría profunda", expanded=False):
+    with st.expander(t("⚙️ Opciones de auditoría profunda"), expanded=False):
         st.slider(
-            "Profundidad de rastreo", min_value=0, max_value=3,
+            t("Profundidad de rastreo"), min_value=0, max_value=3,
             key="crawl_profundidad",
-            help="0 = solo la página indicada. 2 = sigue enlaces hasta 2 niveles.",
+            help=t("0 = solo la página indicada. 2 = sigue enlaces hasta 2 niveles."),
         )
         st.slider(
-            "Máximo de páginas", min_value=1, max_value=50,
+            t("Máximo de páginas"), min_value=1, max_value=50,
             key="crawl_max_paginas",
-            help="Límite de páginas a analizar en profundidad.",
+            help=t("Límite de páginas a analizar en profundidad."),
         )
     return (
         st.session_state.get("crawl_profundidad", 2),

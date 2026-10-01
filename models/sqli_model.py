@@ -11,6 +11,7 @@ from models.http_utils import (
     hacer_peticion, construir_url, construir_url_params, es_bloqueo,
 )
 from models.discovery import descubrir_objetivos
+from models.i18n import t as _t
 
 
 SQLI_PAYLOADS_ERROR = [
@@ -192,13 +193,13 @@ class SQLiModel:
             if (time.perf_counter() - self._inicio) > self.tiempo_maximo:
                 self._bloqueado = True
                 self._motivo_parada = self._motivo_parada or "tiempo"
-                self._nota(f"Tiempo máximo alcanzado ({self.tiempo_maximo:.0f}s): análisis detenido.")
+                self._nota(_t("Tiempo máximo alcanzado ({}s): análisis detenido.").format(self.tiempo_maximo))
                 return None, 0, "tiempo agotado"
         self._peticiones += 1
         if self._peticiones > self.max_peticiones:
             self._bloqueado = True
             self._motivo_parada = self._motivo_parada or "presupuesto"
-            self._nota(f"Presupuesto de peticiones agotado ({self.max_peticiones}): análisis detenido.")
+            self._nota(_t("Presupuesto de peticiones agotado ({}): análisis detenido.").format(self.max_peticiones))
             return None, 0, "presupuesto de peticiones agotado"
 
         t = timeout or self.timeout
@@ -233,7 +234,7 @@ class SQLiModel:
             resp, el, err = hacer_peticion(url, timeout=t, headers=self.headers, pausa=self.pausa)
 
         if resp is not None and es_bloqueo(resp):
-            self._nota(f"WAF/rate-limit detectado (HTTP {resp.status_code}).")
+            self._nota(_t("WAF/rate-limit detectado (HTTP {}).").format(resp.status_code))
             if self.abortar_waf:
                 self._bloqueado = True
                 self._motivo_parada = self._motivo_parada or "waf"
@@ -254,7 +255,7 @@ class SQLiModel:
             return {
                 "url": url, "vulnerable": False, "parametros_probados": [],
                 "hallazgos": [], "objetivos": [], "descubrimiento": info,
-                "detalle": info.get("mensaje") or "No se encontraron parámetros ni formularios que analizar.",
+                "detalle": info.get("mensaje") or _t("No se encontraron parámetros ni formularios que analizar."),
             }
 
         truncado = len(objetivos) > self.max_objetivos
@@ -316,27 +317,27 @@ class SQLiModel:
         vulnerable = len(hallazgos) > 0
         fuentes = []
         if info.get("formularios"):
-            fuentes.append(f"{info['formularios']} formulario(s)")
+            fuentes.append(f"{info['formularios']} {_t('formulario(s)')}")
         if info.get("enlaces_con_params"):
-            fuentes.append(f"{info['enlaces_con_params']} enlace(s) con parámetros")
+            fuentes.append(f"{info['enlaces_con_params']} {_t('enlace(s) con parámetros')}")
         if any(o["origen"] == "url" for o in objetivos):
-            fuentes.append("parámetros de la URL")
-        resumen = ", ".join(fuentes) if fuentes else "puntos detectados"
+            fuentes.append(_t("parámetros de la URL"))
+        resumen = ", ".join(fuentes) if fuentes else _t("puntos detectados")
 
         if vulnerable:
-            detalle = (f"Se analizaron {n} punto(s) de inyección ({resumen}) y se "
-                       f"detectaron {len(hallazgos)} hallazgo(s).")
+            detalle = _t("Se analizaron {} punto(s) de inyección ({}) y se "
+                         "detectaron {} hallazgo(s).").format(n, resumen, len(hallazgos))
         else:
-            detalle = (f"No se detectaron signos claros de inyección SQL en {n} punto(s) "
-                       f"de inyección ({resumen}).")
+            detalle = _t("No se detectaron signos claros de inyección SQL en {} punto(s) "
+                         "de inyección ({}).").format(n, resumen)
         if truncado:
-            detalle += f" Se limitó el análisis a {self.max_objetivos} parámetros."
+            detalle += _t(" Se limitó el análisis a {} parámetros.").format(self.max_objetivos)
         if self._motivo_parada == "presupuesto":
-            detalle += f" Se alcanzó el límite de {self.max_peticiones} peticiones (sube el máximo para continuar)."
+            detalle += _t(" Se alcanzó el límite de {} peticiones (sube el máximo para continuar).").format(self.max_peticiones)
         elif self._motivo_parada == "tiempo":
-            detalle += f" Se alcanzó el tiempo máximo de {self.tiempo_maximo:.0f}s."
+            detalle += _t(" Se alcanzó el tiempo máximo de {}s.").format(int(self.tiempo_maximo))
         elif self._motivo_parada == "waf":
-            detalle += " El objetivo bloqueó o limitó las peticiones (WAF/rate-limit): se detuvo el análisis."
+            detalle += _t(" El objetivo bloqueó o limitó las peticiones (WAF/rate-limit): se detuvo el análisis.")
 
         return {
             "url": url, "vulnerable": vulnerable, "parametros_probados": parametros_probados,
@@ -366,7 +367,7 @@ class SQLiModel:
         formularios = [o for o in objetivos if o["method"] in ("POST", "PUT", "PATCH")]
         if not formularios:
             return {"url": url, "vulnerable": False, "hallazgos": [], "tipo": "segundo-orden",
-                    "detalle": "No hay formularios/endpoints de escritura donde inyectar."}
+                    "detalle": _t("No hay formularios/endpoints de escritura donde inyectar.")}
         formularios = formularios[:6]
 
         # Estabilizar el estado: sobrescribe cualquier valor previo (p. ej. de un
@@ -410,8 +411,8 @@ class SQLiModel:
                             "payload": payload, "severidad": "Alta", "confianza": 70,
                             "motor_sugerido": ", ".join(dbs),
                             "pagina_disparo": p,
-                            "evidencia": (f"Tras inyectar en {o['url']}, la página "
-                                          f"{urlparse(p).path or '/'} devolvió un error SQL nuevo: {firmas_txt}."),
+                            "evidencia": _t("Tras inyectar en {}, la página {} devolvió un error SQL nuevo: {}.").format(
+                                o["url"], urlparse(p).path or "/", firmas_txt),
                             "reproducir": self._curl(o, payload),
                         }
                         hallazgo["cvss"] = 0
@@ -421,13 +422,13 @@ class SQLiModel:
                             callback(1.0, "Segundo orden: hallazgo encontrado")
                         return {"url": url, "vulnerable": True, "hallazgos": [hallazgo],
                                 "tipo": "segundo-orden",
-                                "detalle": ("Posible SQLi de segundo orden: una inyección almacenada "
-                                            "provoca un error SQL en otra página.")}
+                                "detalle": _t("Posible SQLi de segundo orden: una inyección almacenada "
+                                              "provoca un error SQL en otra página.")}
 
         if callback:
             callback(1.0, "Segundo orden completado")
         return {"url": url, "vulnerable": False, "hallazgos": [], "tipo": "segundo-orden",
-                "detalle": "No se detectó SQLi de segundo orden (heurístico)."}
+                "detalle": _t("No se detectó SQLi de segundo orden (heurístico).")}
 
     def _firmas_error(self, body: str, headers_str: str) -> dict:
         """Firmas de error SQL presentes, con detalle de dónde aparecen."""
@@ -506,7 +507,7 @@ class SQLiModel:
                 if clave not in firmas_base
             }
             if not firmas_conf:
-                self._nota("error-based: el error SQL no se reprodujo al confirmar (posible falso negativo).")
+                self._nota(_t("error-based: el error SQL no se reprodujo al confirmar (posible falso negativo)."))
                 return []
 
         firmas_lista = list(firmas_encontradas.values())
@@ -529,7 +530,7 @@ class SQLiModel:
             "payload": payload_principal, "severidad": "Alta", "confianza": confidence,
             "motor_sugerido": ", ".join(dbs_distintas),
             "firmas_detectadas": len(firmas_encontradas), "motivos": firmas_texto,
-            "evidencia": f"Firmas SQL en {', '.join(ambito)}: {firmas_texto}",
+            "evidencia": _t("Firmas SQL en {}: {}").format(", ".join(ambito), firmas_texto),
             "codigo_http": mejor_status,
             "reproducir": self._curl(objetivo, payload_principal),
         }
@@ -609,7 +610,7 @@ class SQLiModel:
                     sub_callback(1.0, "  Sin respuesta base válida")
                 return []
             if resp.status_code >= 500:
-                self._nota("boolean: la página base devuelve 5xx (técnica omitida).")
+                self._nota(_t("boolean: la página base devuelve 5xx (técnica omitida)."))
                 if sub_callback:
                     sub_callback(1.0, "  Página base con error del servidor")
                 return []
@@ -617,7 +618,7 @@ class SQLiModel:
             muestras.append(resp)
 
         if len(muestras[0].text) < 50:
-            self._nota("boolean: respuesta base muy pequeña (técnica omitida).")
+            self._nota(_t("boolean: respuesta base muy pequeña (técnica omitida)."))
             if sub_callback:
                 sub_callback(1.0, "  Respuesta base demasiado pequeña para boolean-based")
             return []
@@ -627,8 +628,8 @@ class SQLiModel:
         if len(muestras) > 1:
             ruido = 1 - SequenceMatcher(None, base_norm, _normalizar_volatil(muestras[1].text)).ratio()
         if ruido > 0.25:
-            self._nota(f"boolean: página demasiado volátil (ruido {ruido:.2f}; técnica omitida). "
-                       "Si sospechas inyección, baja la exigencia de ruido o revisa manualmente.")
+            self._nota(_t("boolean: página demasiado volátil (ruido {}; técnica omitida). "
+                       "Si sospechas inyección, baja la exigencia de ruido o revisa manualmente.").format(f"{ruido:.2f}"))
             if sub_callback:
                 sub_callback(1.0, f"  Página demasiado volátil (ruido {ruido:.2f})")
             return []
@@ -680,14 +681,14 @@ class SQLiModel:
             rf2, _, e4 = self._enviar(objetivo, pf)
             if (e1 or e2 or e3 or e4 or None in (rt1, rf1, rt2, rf2)
                     or any(r.status_code >= 500 for r in (rt1, rf1, rt2, rf2))):
-                self._nota("boolean: no se pudo confirmar (respuestas con error o nulas).")
+                self._nota(_t("boolean: no se pudo confirmar (respuestas con error o nulas)."))
                 return []
             nt2 = self._sin_eco(_normalizar_volatil(rt2.text), pt)
             nf2 = self._sin_eco(_normalizar_volatil(rf2.text), pf)
             repro_t = SequenceMatcher(None, nt2, self._sin_eco(_normalizar_volatil(rt1.text), pt)).ratio()
             repro_f = SequenceMatcher(None, nf2, self._sin_eco(_normalizar_volatil(rf1.text), pf)).ratio()
             if repro_t < 0.90 or repro_f < 0.90:
-                self._nota("boolean: respuestas inestables para el mismo payload (no confirmado).")
+                self._nota(_t("boolean: respuestas inestables para el mismo payload (no confirmado)."))
                 return []  # destino inestable para un mismo payload -> descartar
             confirmado = self._evaluar_par(nt2, nf2, rt2.status_code, rf2.status_code, status_base, ruido)
             if not confirmado or sum(confirmado[0].values()) < 3:
@@ -819,7 +820,7 @@ class SQLiModel:
                     continue
                 sim2 = SequenceMatcher(None, base_norm, _normalizar_volatil(resp2.text)).ratio()
                 if sim2 >= 0.90:
-                    self._nota("UNION: candidato no confirmado (descartado).")
+                    self._nota(_t("UNION: candidato no confirmado (descartado)."))
                     continue
                 sim = min(sim, sim2)
 
@@ -832,7 +833,7 @@ class SQLiModel:
                 "payload": payload, "columnas": n,
                 "severidad": "Alta", "confianza": confianza,
                 "reproducir": self._curl(objetivo, payload),
-                "evidencia": f"UNION SELECT con {n} columnas altera la respuesta (similitud {round(sim, 3)}).",
+                "evidencia": _t("UNION SELECT con {} columnas altera la respuesta (similitud {}).").format(n, round(sim, 3)),
                 "datos_extraidos": datos,
             }
             hallazgo["cvss"] = 0
@@ -907,7 +908,7 @@ class SQLiModel:
             if self.confirmar:
                 conf = self._medir_retardo(objetivo, payload, delay, tiempo_base_mediana)
                 if not conf or conf["consistencia"] < 0.8 or conf["diferencia"] < delay * 0.6:
-                    self._nota("time-based: el retardo no se reprodujo al confirmar (descartado).")
+                    self._nota(_t("time-based: el retardo no se reprodujo al confirmar (descartado)."))
                     continue
                 m["diferencia"] = max(m["diferencia"], conf["diferencia"])
                 m["mediana"] = max(m["mediana"], conf["mediana"])

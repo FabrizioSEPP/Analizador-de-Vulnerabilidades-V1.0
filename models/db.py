@@ -13,6 +13,8 @@ import os
 
 import streamlit as st
 
+from models.i18n import t
+
 try:
     from dotenv import load_dotenv
     load_dotenv()
@@ -72,10 +74,32 @@ def esta_configurado() -> bool:
     return get_client() is not None
 
 
+def _local():
+    """Módulo de base de datos local (SQLite), o None si no se puede usar."""
+    try:
+        from models import db_local
+        return db_local
+    except Exception:
+        return None
+
+
+def hay_base_datos() -> bool:
+    """True si hay Supabase configurado O si se puede usar la base local."""
+    return esta_configurado() or _local() is not None
+
+
+def usando_base_local() -> bool:
+    """True cuando se está usando SQLite local (Supabase no configurado)."""
+    return get_client() is None and _local() is not None
+
+
 # ------------------------------------------------------------------ usuarios
 def obtener_usuario(username: str):
     cli = get_client()
-    if cli is None or not username:
+    if cli is None:
+        loc = _local()
+        return loc.obtener_usuario(username) if loc else None
+    if not username:
         return None
     try:
         res = (
@@ -94,7 +118,10 @@ def crear_usuario(username: str, password_hash: str, salt: str,
                   iteraciones: int = 200_000, algo: str = "pbkdf2_sha256"):
     cli = get_client()
     if cli is None:
-        return False, "Base de datos no configurada."
+        loc = _local()
+        if loc is None:
+            return False, "Base de datos no configurada."
+        return loc.crear_usuario(username, password_hash, salt, iteraciones, algo)
     try:
         cli.table("app_users").insert({
             "username": username.strip().lower(),
@@ -108,14 +135,18 @@ def crear_usuario(username: str, password_hash: str, salt: str,
     except Exception as e:
         msg = str(e)
         if "duplicate key" in msg.lower() or "unique" in msg.lower() or "23505" in msg:
-            return False, "El usuario ya existe."
-        return False, f"No se pudo crear el usuario: {msg[:160]}"
+            return False, t("El usuario ya existe.")
+        return False, t("No se pudo crear el usuario: {}").format(msg[:160])
 
 
 def actualizar_credenciales(username: str, password_hash: str, salt: str,
                             iteraciones: int = 200_000, algo: str = "pbkdf2_sha256"):
     cli = get_client()
     if cli is None:
+        loc = _local()
+        if loc is not None:
+            loc.actualizar_credenciales(username, password_hash, salt, iteraciones, algo)
+            return True
         return False
     try:
         cli.table("app_users").update({
@@ -130,6 +161,9 @@ def actualizar_credenciales(username: str, password_hash: str, salt: str,
 def registrar_login(username: str):
     cli = get_client()
     if cli is None:
+        loc = _local()
+        if loc is not None:
+            loc.registrar_login(username)
         return
     from datetime import datetime, timezone
     try:
@@ -178,9 +212,19 @@ def guardar_scan(username: str, modulo: str, url: str, score=None, nivel=None,
                  total_hallazgos: int = 0, detalle: str = "",
                  resumen: dict | None = None, hallazgos: list | None = None):
     """Inserta un scan y sus hallazgos. Devuelve el id del scan o None."""
-    cli = get_client()
-    if cli is None or not username:
+    if not username:
         return None
+    cli = get_client()
+    if cli is None:
+        loc = _local()
+        if loc is None:
+            return None
+        filas = [_fila_hallazgo(None, h) for h in (hallazgos or []) if isinstance(h, dict)]
+        return loc.guardar_scan(
+            username=username, modulo=modulo, url=url, score=score, nivel=nivel,
+            total_hallazgos=total_hallazgos, detalle=detalle, resumen=resumen,
+            hallazgos=filas,
+        )
     try:
         res = cli.table("scans").insert({
             "username": username.strip().lower(),
@@ -204,9 +248,12 @@ def guardar_scan(username: str, modulo: str, url: str, score=None, nivel=None,
 
 
 def listar_scans(username: str, limite: int = 10) -> list:
-    cli = get_client()
-    if cli is None or not username:
+    if not username:
         return []
+    cli = get_client()
+    if cli is None:
+        loc = _local()
+        return loc.listar_scans(username, limite) if loc else []
     try:
         res = (
             cli.table("scans")
@@ -222,9 +269,12 @@ def listar_scans(username: str, limite: int = 10) -> list:
 
 
 def obtener_hallazgos(scan_id: str) -> list:
-    cli = get_client()
-    if cli is None or not scan_id:
+    if not scan_id:
         return []
+    cli = get_client()
+    if cli is None:
+        loc = _local()
+        return loc.obtener_hallazgos(scan_id) if loc else []
     try:
         res = (
             cli.table("scan_findings")

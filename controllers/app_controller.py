@@ -7,17 +7,20 @@ from models.auth_model import logout
 from views.components import (
     ui_sidebar, ui_authorization_check, ui_url_input_sidebar,
     ui_navigation_buttons, ui_execute_button, ui_internal_network_toggle,
-    ui_audit_options, ui_sqli_options, ui_theme_selector, hero_header, aviso,
+    ui_audit_options, ui_sqli_options, ui_theme_selector, ui_language_selector,
+    hero_header, aviso,
     css_tema, CSS_STYLES,
 )
+from models.i18n import t, es_o_en
 from views.login_view import mostrar as mostrar_login
 from views.history_view import mostrar_historial
 
 
 def run():
-    st.set_page_config(page_title="Analizador de Vulnerabilidades Web", layout="wide")
+    st.set_page_config(page_title=t("Analizador de Vulnerabilidades Web"), layout="wide")
 
-    # El tema debe fijarse antes de inyectar el CSS.
+    # El idioma debe fijarse antes de inyectar el CSS.
+    st.session_state.setdefault("idioma", "es")
     st.session_state.setdefault("tema", "sistema")
     st.session_state.setdefault("current_user", "")
     st.session_state.setdefault("permitir_privadas", False)
@@ -65,15 +68,23 @@ def run():
         mostrar_historial(user)
         with st.container(key="sidebar-user-card"):
             st.markdown(f"👤 **{user}**")
-            st.caption("🗄️ Supabase conectado" if db.esta_configurado() else "⚠️ Supabase sin configurar")
-            if st.button("🚪 Cerrar Sesión", use_container_width=True, key="logout_btn"):
+            if db.esta_configurado():
+                st.caption(es_o_en("🗄️ Supabase conectado", "🗄️ Supabase connected"))
+            elif db.usando_base_local():
+                st.caption(es_o_en("🗄️ Base de datos local (SQLite)",
+                                   "🗄️ Local database (SQLite)"))
+            else:
+                st.caption(es_o_en("⚠️ Supabase sin configurar",
+                                   "⚠️ Supabase not configured"))
+            if st.button(t("🚪 Cerrar Sesión"), use_container_width=True, key="logout_btn"):
                 logout()
         with st.container(key="sidebar-theme-compact"):
+            ui_language_selector()
             ui_theme_selector()
         st.markdown(
             '<div class="sidebar-system-status">'
             '<span class="sidebar-system-status-dot"></span>'
-            '<span>Sistema activo - Todos los módulos operativos</span></div>',
+            f'<span>{t("Sistema activo - Todos los módulos operativos")}</span></div>',
             unsafe_allow_html=True,
         )
 
@@ -86,7 +97,7 @@ def run():
         with toolbar_columns[2]:
             st.markdown(
                 '<div class="system-status"><span class="system-status-dot"></span>'
-                '<span>Sistema activo</span></div>',
+                '<span>' + t("Sistema activo") + '</span></div>',
                 unsafe_allow_html=True,
             )
 
@@ -95,9 +106,9 @@ def run():
     if ejecutar and autorizado and url_input.strip():
         _dispatch(selected_mode, url_input.strip())
     elif not autorizado:
-        aviso("info", "🔒 Confirma tu autorización en la barra lateral para comenzar el análisis.")
+        aviso("info", t("🔒 Confirma tu autorización en la barra lateral para comenzar el análisis."))
     elif not url_input.strip():
-        aviso("warning", "Ingresa una URL en la barra lateral para comenzar.")
+        aviso("warning", t("Ingresa una URL en la barra lateral para comenzar."))
 
 
 def _dispatch(mode: str, url: str):

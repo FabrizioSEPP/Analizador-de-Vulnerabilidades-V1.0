@@ -1,7 +1,8 @@
 import streamlit as st
 from models import db
 from models.auth_model import register, login
-from views.components import aviso, ui_theme_selector
+from views.components import aviso, ui_theme_selector, ui_language_selector
+from models.i18n import t
 
 MIN_PASSWORD = 8
 
@@ -36,33 +37,41 @@ CSS_LOGIN = """
 def mostrar():
     st.markdown(CSS_LOGIN, unsafe_allow_html=True)
 
-    if not db.esta_configurado():
-        aviso("warning", "Configura tu base de datos en el archivo **.env** "
-                         "(`SUPABASE_URL` y `SUPABASE_KEY`) para poder iniciar sesión.")
+    if not db.esta_configurado() and not db.hay_base_datos():
+        aviso("warning", t("Configura tu base de datos en el archivo **.env** "
+                           "(`SUPABASE_URL` y `SUPABASE_KEY`) para poder iniciar sesión."))
+    elif db.usando_base_local():
+        aviso("info", t("🗄️ Modo local: los usuarios y el historial se guardan en "
+                        "`data/vulnweb.db` (SQLite). Configura Supabase en `.env` para usarla."))
+
+    try:
+        ui_language_selector()
+    except Exception:
+        pass
 
     _, centro, _ = st.columns([1, 1.25, 1])
     with centro:
         with st.container(border=True):
             st.markdown('<div class="login-badge">🛡️</div>', unsafe_allow_html=True)
-            st.markdown('<div class="login-title">Analizador de Vulnerabilidades Web</div>', unsafe_allow_html=True)
-            st.markdown('<div class="login-subtitle">Pentesting ético · CVSS · PGI · OWASP</div>', unsafe_allow_html=True)
-            st.markdown('<div class="login-note">Accede para auditar tus propios sistemas</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="login-title">{t("Analizador de Vulnerabilidades Web")}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="login-subtitle">{t("Pentesting ético · CVSS · PGI · OWASP")}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="login-note">{t("Accede para auditar tus propios sistemas")}</div>', unsafe_allow_html=True)
             st.markdown("<div style='height:14px'></div>", unsafe_allow_html=True)
 
-            tab_login, tab_reg = st.tabs(["🔑 Iniciar Sesión", "📝 Crear Cuenta"])
+            tab_login, tab_reg = st.tabs([t("🔑 Iniciar Sesión"), t("📝 Crear Cuenta")])
 
             with tab_login:
                 with st.form("login_form", border=False):
                     l_user = st.text_input(
-                        "👤 Usuario", key="login_user",
-                        placeholder="tu_usuario", label_visibility="collapsed",
+                        t("👤 Usuario"), key="login_user",
+                        placeholder=t("tu_usuario"), label_visibility="collapsed",
                     )
                     l_pass = st.text_input(
-                        "🔑 Contraseña", type="password", key="login_pass",
-                        placeholder="Contraseña", label_visibility="collapsed",
+                        t("🔑 Contraseña"), type="password", key="login_pass",
+                        placeholder=t("Contraseña"), label_visibility="collapsed",
                     )
                     submitted = st.form_submit_button(
-                        "Entrar", type="primary", use_container_width=True,
+                        t("Entrar"), type="primary", use_container_width=True,
                     )
                     if submitted:
                         ok, msg = login(l_user, l_pass)
@@ -76,29 +85,29 @@ def mostrar():
             with tab_reg:
                 with st.form("register_form", border=False):
                     r_user = st.text_input(
-                        "👤 Nombre de usuario", key="reg_user",
-                        placeholder="mi_usuario", label_visibility="collapsed",
+                        t("👤 Nombre de usuario"), key="reg_user",
+                        placeholder=t("mi_usuario"), label_visibility="collapsed",
                     )
                     r_pass = st.text_input(
-                        "🔑 Crear contraseña", type="password", key="reg_pass",
-                        placeholder=f"mínimo {MIN_PASSWORD} caracteres", label_visibility="collapsed",
+                        t("🔑 Crear contraseña"), type="password", key="reg_pass",
+                        placeholder=t("mínimo {} caracteres").format(MIN_PASSWORD), label_visibility="collapsed",
                     )
                     r_pass2 = st.text_input(
-                        "🔑 Repetir contraseña", type="password", key="reg_pass2",
-                        placeholder="repetir contraseña", label_visibility="collapsed",
+                        t("🔑 Repetir contraseña"), type="password", key="reg_pass2",
+                        placeholder=t("repetir contraseña"), label_visibility="collapsed",
                     )
                     reg_submitted = st.form_submit_button(
-                        "Crear cuenta", type="primary", use_container_width=True,
+                        t("Crear cuenta"), type="primary", use_container_width=True,
                     )
                     if reg_submitted:
                         if not r_user or not r_pass:
-                            aviso("error", "Todos los campos son obligatorios.")
+                            aviso("error", t("Todos los campos son obligatorios."))
                         elif len(r_user) < 3:
-                            aviso("error", "El usuario debe tener al menos 3 caracteres.")
+                            aviso("error", t("El usuario debe tener al menos 3 caracteres."))
                         elif len(r_pass) < MIN_PASSWORD:
-                            aviso("error", f"La contraseña debe tener al menos {MIN_PASSWORD} caracteres.")
+                            aviso("error", t("La contraseña debe tener al menos {} caracteres.").format(MIN_PASSWORD))
                         elif r_pass != r_pass2:
-                            aviso("error", "Las contraseñas no coinciden.")
+                            aviso("error", t("Las contraseñas no coinciden."))
                         else:
                             ok, msg = register(r_user, r_pass)
                             if ok:
@@ -116,6 +125,6 @@ def mostrar():
             ui_theme_selector()
 
     st.markdown(
-        '<div class="login-footer">© 2026 — Herramienta de pentesting ético. Uso responsable.</div>',
+        f'<div class="login-footer">© 2026 — {t("Herramienta de pentesting ético. Uso responsable.")}</div>',
         unsafe_allow_html=True,
     )

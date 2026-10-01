@@ -8,11 +8,12 @@ from models.phishing_ml import detectar_phishing
 from models.audit_consolidator import consolidar_auditoria
 from views.components import aviso, aviso_html, tabla, section_header
 from views.audit_view import mostrar as mostrar_audit
+from models.i18n import t, es_o_en
 
 
 def ejecutar_audit_unificado(url_input: str):
     if not url_input.strip():
-        aviso("warning", "Por favor, ingresa una URL.")
+        aviso("warning", t("Por favor, ingresa una URL."))
         return
 
     url_input = normalizar_url(url_input)
@@ -31,7 +32,7 @@ def ejecutar_audit_unificado(url_input: str):
         progress_bar.progress(min(max(p, 0.0), 1.0))
         status_text.markdown(aviso_html("info", m), unsafe_allow_html=True)
 
-    callback(0.02, "Iniciando auditoría profunda...")
+    callback(0.02, t("Iniciando auditoría profunda..."))
     try:
         profundo = auditoria_profunda(
             url_input, max_paginas=max_paginas, profundidad=profundidad, callback=callback
@@ -40,7 +41,7 @@ def ejecutar_audit_unificado(url_input: str):
         profundo = {"url": url_input, "paginas": [], "errores": [], "total_errores": 0,
                     "score_vulnerabilidad": 0, "nivel_vulnerabilidad": "info", "tecnologias": []}
 
-    callback(0.9, "Detectando phishing...")
+    callback(0.9, t("Detectando phishing..."))
     phishing = detectar_phishing(url_input)
 
     resultados = {"url": url_input, "modulo": "auditoria_unificada", "errores": profundo.get("errores", [])}
@@ -51,7 +52,7 @@ def ejecutar_audit_unificado(url_input: str):
 
     history.guardar("audit", url_input, auditoria, st.session_state.get("current_user", ""))
 
-    callback(1.0, "Auditoría completada")
+    callback(1.0, t("Auditoría completada"))
     progress_bar.empty()
     status_text.empty()
     st.markdown("---")
@@ -62,39 +63,41 @@ def ejecutar_port_scan(url_input: str):
     from models.port_scanner import analizar_objetivo as escanear
 
     if not url_input.strip():
-        aviso("warning", "Por favor, ingresa una URL o dominio.")
+        aviso("warning", t("Por favor, ingresa una URL o dominio."))
         return
 
     progress_bar = st.progress(0.0)
     status_text = st.empty()
 
     try:
-        progress_bar.progress(0.2, "Resolviendo host...")
+        progress_bar.progress(0.2, t("Resolviendo host..."))
         resultado = escanear(
             url_input, "1-1024",
             permitir_privadas=st.session_state.get("permitir_privadas", False),
         )
-        progress_bar.progress(0.8, "Escaneando puertos...")
+        progress_bar.progress(0.8, t("Escaneando puertos..."))
         status_text.empty()
-        progress_bar.progress(1.0, "Escaneo completado")
+        progress_bar.progress(1.0, t("Escaneo completado"))
 
         history.guardar("port", url_input, resultado, st.session_state.get("current_user", ""))
 
-        section_header("Puertos expuestos", "Resultado del escaneo TCP (1-1024)", "🔌")
+        section_header(es_o_en("Puertos expuestos", "Exposed ports"),
+                       es_o_en("Resultado del escaneo TCP (1-1024)", "TCP scan result (1-1024)"), "🔌")
         st.markdown(
             f"**Host:** {resultado['host']} · **IP:** {resultado['ip']} · "
-            f"**Puertos abiertos:** {resultado['total_puertos']}"
+            f"**{es_o_en('Puertos abiertos:', 'Open ports:')}** {resultado['total_puertos']}"
         )
 
         if resultado["puertos"]:
             tabla(pd.DataFrame(resultado["puertos"]))
         else:
-            aviso("success", "No se encontraron puertos abiertos en el rango escaneado.")
+            aviso("success", es_o_en("No se encontraron puertos abiertos en el rango escaneado.",
+                                     "No open ports found in the scanned range."))
 
         progress_bar.empty()
     except ValueError as e:
         aviso("error", str(e))
         progress_bar.empty()
     except Exception as e:
-        aviso("error", f"Error durante el escaneo: {e}")
+        aviso("error", t("Error durante el escaneo: {}").format(e))
         progress_bar.empty()

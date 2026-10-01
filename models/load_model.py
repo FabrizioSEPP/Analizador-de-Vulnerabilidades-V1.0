@@ -4,6 +4,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from models.http_utils import hacer_peticion
+from models.i18n import t as _t
 
 
 MAX_CONCURRENCIA = 50
@@ -30,11 +31,11 @@ class LoadModel:
 
         if error_base or response_base is None:
             if callback:
-                callback(1.0, "Error en la medición inicial")
+                callback(1.0, _t("Error en la medición inicial"))
             return {
                 "url": url, "niveles": [], "capacidad_estimada": 0,
                 "detenido_por_degradacion": False,
-                "detalle": f"No se pudo conectar a la URL: {error_base}",
+                "detalle": _t("No se pudo conectar a la URL: {}").format(error_base),
             }
 
         latencia_base = tiempo_base
@@ -95,32 +96,27 @@ class LoadModel:
                 capacidad_estimada = ultimo_nivel_estable
                 razon = []
                 if degradado_error:
-                    razon.append(f"tasa de error {round(tasa_error, 2)}% > 10%")
+                    razon.append(_t("tasa de error {}% > 10%").format(round(tasa_error, 2)))
                 if degradado_latencia:
-                    razon.append(f"latencia {round(latencia_promedio, 4)}s > 3x base ({round(latencia_base, 4)}s)")
+                    razon.append(_t("latencia {}s > 3x base ({}s)").format(round(latencia_promedio, 4), round(latencia_base, 4)))
                 if degradado_p95:
-                    razon.append(f"p95 {percentiles.get('p95', 0)}s > 4x base ({round(latencia_base, 4)}s)")
+                    razon.append(_t("p95 {}s > 4x base ({}s)").format(percentiles.get('p95', 0), round(latencia_base, 4)))
                 if degradado_volatilidad:
-                    razon.append(f"volatilidad (CV) {round(cv, 2)} > 1.0")
-                detalle = (
-                    f"Se detectó degradación en concurrencia {concurrencia}: "
-                    f"({' y '.join(razon)}). "
-                    f"Capacidad estable estimada: {capacidad_estimada} peticiones simultáneas."
-                )
+                    razon.append(_t("volatilidad (CV) {} > 1.0").format(round(cv, 2)))
+                detalle = _t("Se detectó degradación en concurrencia {}: {}. "
+                             "Capacidad estable estimada: {} peticiones simultáneas.").format(
+                    concurrencia, " y ".join(razon), capacidad_estimada)
                 break
             else:
                 ultimo_nivel_estable = concurrencia
                 capacidad_estimada = concurrencia
 
         if not detenido_por_degradacion:
-            detalle = (
-                f"El sistema soportó todas las pruebas hasta {MAX_CONCURRENCIA} "
-                f"peticiones simultáneas sin degradación. "
-                f"La capacidad real podría estar por encima del techo de la herramienta."
-            )
+            detalle = _t("El sistema soportó todas las pruebas hasta {} peticiones simultáneas sin degradación. "
+                         "La capacidad real podría estar por encima del techo de la herramienta.").format(MAX_CONCURRENCIA)
 
         if callback:
-            callback(1.0, "Prueba de carga completada")
+            callback(1.0, _t("Prueba de carga completada"))
 
         return {
             "url": url, "niveles": niveles_resultado, "capacidad_estimada": capacidad_estimada,

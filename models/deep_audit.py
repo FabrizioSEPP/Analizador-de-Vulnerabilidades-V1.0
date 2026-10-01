@@ -11,29 +11,30 @@ from urllib.parse import urljoin
 from models.crawler import rastrear
 from models.deep_analysis import analizar_profundamente, _normalizar_cabeceras
 from models.http_utils import hacer_peticion
+from models.i18n import t, es_o_en
 
 # ruta -> (severidad, validador, descripcion, owasp)
 ARCHIVOS_SENSIBLES = {
     ".env": ("alta", lambda r: "=" in r.text and "<html" not in r.text.lower() and len(r.text) > 10,
-             "Archivo de variables de entorno expuesto", "A05"),
+             t("Archivo de variables de entorno expuesto"), "A05"),
     ".git/config": ("alta", lambda r: "[core]" in r.text,
-                    "Repositorio Git expuesto", "A05"),
+                    t("Repositorio Git expuesto"), "A05"),
     ".git/HEAD": ("alta", lambda r: r.text.strip().startswith("ref:"),
-                  "Metadatos de Git expuestos", "A05"),
+                  t("Metadatos de Git expuestos"), "A05"),
     "phpinfo.php": ("media", lambda r: "phpinfo()" in r.text.lower() or "php version" in r.text.lower(),
-                    "Página phpinfo() expuesta", "A05"),
+                    t("Página phpinfo() expuesta"), "A05"),
     "server-status": ("media", lambda r: "server status" in r.text.lower(),
-                      "Estado del servidor expuesto", "A02"),
+                      t("Estado del servidor expuesto"), "A02"),
     "web.config": ("media", lambda r: "<configuration" in r.text.lower(),
-                   "web.config expuesto", "A05"),
+                   t("web.config expuesto"), "A05"),
     ".DS_Store": ("baja", lambda r: r.content[:4] == b"\x00\x00\x00\x01",
-                  "Archivo .DS_Store expuesto", "A05"),
+                  t("Archivo .DS_Store expuesto"), "A05"),
     "backup.zip": ("alta", lambda r: r.content[:2] == b"PK",
-                   "Backup comprimido accesible", "A05"),
+                   t("Backup comprimido accesible"), "A05"),
     "wp-config.php.bak": ("alta", lambda r: "db_password" in r.text.lower() or "define(" in r.text,
-                          "Copia de wp-config expuesta", "A05"),
+                          t("Copia de wp-config expuesta"), "A05"),
     "config.php.bak": ("alta", lambda r: "password" in r.text.lower() and "<html" not in r.text.lower(),
-                       "Copia de configuración expuesta", "A05"),
+                       t("Copia de configuración expuesta"), "A05"),
 }
 
 FIRMAS_TECNOLOGIA = {
@@ -71,13 +72,13 @@ def _analizar_csp(headers: dict) -> list:
         return []
     debilidades = [p for p in ("unsafe-inline", "unsafe-eval") if p in csp.lower()]
     if "*" in csp:
-        debilidades.append("comodín *")
+        debilidades.append(t("comodín *"))
     if not debilidades:
         return []
     return [{
-        "tipo": "csp_debil", "descripcion": "Content-Security-Policy débil",
-        "detalle": "Permite: " + ", ".join(debilidades) + ". Facilita la ejecución de scripts inyectados.",
-        "severidad": "media", "remediacion": "Eliminar unsafe-inline/unsafe-eval y comodines de la CSP.",
+        "tipo": "csp_debil", "descripcion": t("Content-Security-Policy débil"),
+        "detalle": t("Permite: ") + ", ".join(debilidades) + ". " + t("Facilita la ejecución de scripts inyectados."),
+        "severidad": "media", "remediacion": t("Eliminar unsafe-inline/unsafe-eval y comodines de la CSP."),
         "owasp": "A03",
     }]
 
@@ -91,19 +92,19 @@ def _probar_metodos(url: str) -> list:
         if peligrosos:
             hallazgos.append({
                 "tipo": "metodos_http_peligrosos",
-                "descripcion": f"Métodos HTTP habilitados: {', '.join(peligrosos)}",
-                "detalle": f"Allow: {allow.strip()}. PUT/DELETE permiten modificar recursos.",
+                "descripcion": t("Métodos HTTP habilitados: {}").format(", ".join(peligrosos)),
+                "detalle": t("Allow: {}. PUT/DELETE permiten modificar recursos.").format(allow.strip()),
                 "severidad": "media",
-                "remediacion": "Deshabilitar los métodos HTTP que no sean necesarios.",
+                "remediacion": t("Deshabilitar los métodos HTTP que no sean necesarios."),
                 "owasp": "A05",
             })
 
     resp_t, _, _ = hacer_peticion(url, timeout=6, method="TRACE")
     if resp_t is not None and resp_t.status_code == 200 and "TRACE" in resp_t.text.upper():
         hallazgos.append({
-            "tipo": "trace_habilitado", "descripcion": "Método TRACE habilitado",
-            "detalle": "TRACE devuelve la petición y puede facilitar Cross-Site Tracing (XST).",
-            "severidad": "baja", "remediacion": "Deshabilitar TRACE en el servidor.",
+            "tipo": "trace_habilitado", "descripcion": t("Método TRACE habilitado"),
+            "detalle": t("TRACE devuelve la petición y puede facilitar Cross-Site Tracing (XST)."),
+            "severidad": "baja", "remediacion": t("Deshabilitar TRACE en el servidor."),
             "owasp": "A05",
         })
     return hallazgos
@@ -123,9 +124,9 @@ def _probar_archivos(base: str) -> list:
             continue
         hallazgos.append({
             "tipo": "archivo_expuesto", "descripcion": f"{descripcion}: /{ruta}",
-            "detalle": f"Accesible en {url} (HTTP {resp.status_code}).",
+            "detalle": t("Accesible en {} (HTTP {}).").format(url, resp.status_code),
             "severidad": severidad,
-            "remediacion": "Eliminar o restringir el acceso a este recurso.",
+            "remediacion": t("Eliminar o restringir el acceso a este recurso."),
             "owasp": owasp,
         })
     return hallazgos
@@ -141,10 +142,10 @@ def _leer_robots(base: str) -> list:
         return []
     return [{
         "tipo": "robots_revela_rutas",
-        "descripcion": f"robots.txt revela {len(rutas)} ruta(s)",
-        "detalle": "Rutas: " + ", ".join(rutas[:15]),
+        "descripcion": t("robots.txt revela {} ruta(s)").format(len(rutas)),
+        "detalle": t("Rutas: ") + ", ".join(rutas[:15]),
         "severidad": "info",
-        "remediacion": "No listar rutas sensibles en robots.txt; protégelas con autenticación.",
+        "remediacion": t("No listar rutas sensibles en robots.txt; protégelas con autenticación."),
         "owasp": "A05",
     }]
 
@@ -178,7 +179,7 @@ def _calcular_score(errores: list) -> int:
 
 def auditoria_profunda(url: str, max_paginas: int = 15, profundidad: int = 2, callback=None) -> dict:
     if callback:
-        callback(0.03, "Rastreando el sitio...")
+        callback(0.03, t("Rastreando el sitio..."))
     crawl = rastrear(url, max_paginas=max_paginas, profundidad=profundidad)
 
     errores = []
@@ -187,7 +188,7 @@ def auditoria_profunda(url: str, max_paginas: int = 15, profundidad: int = 2, ca
 
     for i, pagina in enumerate(crawl["paginas"]):
         if callback:
-            callback(0.08 + (i / total) * 0.6, f"Analizando {pagina['url']}")
+            callback(0.08 + (i / total) * 0.6, t("Analizando {}").format(pagina['url']))
         info = {"url": pagina["url"], "status": pagina["status"],
                 "titulo": pagina.get("titulo", ""), "hallazgos": 0}
         if pagina["status"] == 0:
@@ -206,7 +207,7 @@ def auditoria_profunda(url: str, max_paginas: int = 15, profundidad: int = 2, ca
         paginas.append(info)
 
     if callback:
-        callback(0.72, "Comprobaciones profundas del servicio...")
+        callback(0.72, t("Comprobaciones profundas del servicio..."))
 
     base = crawl["url"]
     errores.extend(_leer_robots(base))
@@ -222,15 +223,15 @@ def auditoria_profunda(url: str, max_paginas: int = 15, profundidad: int = 2, ca
         if tecnologias:
             errores.append({
                 "tipo": "tecnologia_expuesta",
-                "descripcion": "Tecnología detectada: " + ", ".join(tecnologias),
-                "detalle": "Conocer el stack facilita buscar vulnerabilidades conocidas de esas versiones.",
+                "descripcion": t("Tecnología detectada: ") + ", ".join(tecnologias),
+                "detalle": t("Conocer el stack facilita buscar vulnerabilidades conocidas de esas versiones."),
                 "severidad": "baja",
-                "remediacion": "Ocultar versiones/firmas y mantener todos los componentes actualizados.",
+                "remediacion": t("Ocultar versiones/firmas y mantener todos los componentes actualizados."),
                 "owasp": "A05",
             })
 
     if callback:
-        callback(0.92, "Consolidando hallazgos...")
+        callback(0.92, t("Consolidando hallazgos..."))
 
     errores = _dedupe(errores)
     score = _calcular_score(errores)

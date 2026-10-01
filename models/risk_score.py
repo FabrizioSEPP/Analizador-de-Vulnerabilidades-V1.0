@@ -1,5 +1,7 @@
 import unicodedata
 
+from models.i18n import t
+
 SEVERITY_ORDER = ["CRÍTICO", "ALTO", "MEDIO", "BAJO", "INFO"]
 SEVERITY_PENALTY = {"CRÍTICO": 30, "ALTO": 20, "MEDIO": 10, "BAJO": 5, "INFO": 0}
 SEVERITY_WEIGHT = {"CRÍTICO": 10, "ALTO": 8, "MEDIO": 5, "BAJO": 2, "INFO": 0}

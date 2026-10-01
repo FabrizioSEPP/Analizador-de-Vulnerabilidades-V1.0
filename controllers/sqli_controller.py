@@ -4,13 +4,14 @@ from models import history
 from models.sqli_model import SQLiModel
 from views.components import aviso, aviso_html, parse_headers
 from views.sqli_view import mostrar as mostrar_sqli
+from models.i18n import t
 
 
 def ejecutar(url_input: str):
     from models.http_utils import validar_url, normalizar_url
 
     if not url_input.strip():
-        aviso("warning", "Por favor, ingresa una URL.")
+        aviso("warning", t("Por favor, ingresa una URL."))
         return
 
     url_input = normalizar_url(url_input)
@@ -41,7 +42,7 @@ def ejecutar(url_input: str):
         confirmar=st.session_state.get("sqli_confirmar", True),
         abortar_waf=st.session_state.get("sqli_abortar_waf", False),
     )
-    with st.spinner("Analizando vulnerabilidades..."):
+    with st.spinner(t("Analizando vulnerabilidades...")):
         resultado = scanner.analizar(url_input, callback=sqli_callback)
 
     history.guardar("sqli", url_input, resultado, st.session_state.get("current_user", ""))

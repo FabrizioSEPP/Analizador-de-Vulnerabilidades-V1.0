@@ -3,6 +3,7 @@ from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import urlparse
 
 from models.http_utils import es_objetivo_privado
+from models.i18n import t
 
 
 def extraer_host(url_o_dominio: str) -> str:
@@ -11,7 +12,7 @@ def extraer_host(url_o_dominio: str) -> str:
         texto = "http://" + texto
     host = urlparse(texto).hostname
     if not host:
-        raise ValueError(f"No se pudo interpretar la URL: {url_o_dominio}")
+        raise ValueError(t("No se pudo interpretar la URL: {}").format(url_o_dominio))
     return host
 
 
@@ -19,7 +20,7 @@ def obtener_ip(host: str) -> str:
     try:
         return socket.gethostbyname(host)
     except socket.gaierror as e:
-        raise ValueError(f"No se pudo resolver {host}: {e}")
+        raise ValueError(t("No se pudo resolver {}: {}").format(host, e))
 
 
 def _parsear_rango(rango_puertos: str) -> tuple[int, int]:
@@ -34,10 +35,10 @@ def _parsear_rango(rango_puertos: str) -> tuple[int, int]:
         else:
             inicio = fin = int(rango)
     except ValueError:
-        raise ValueError(f"Rango de puertos inválido: {rango_puertos!r}")
+        raise ValueError(t("Rango de puertos inválido: {}").format(rango_puertos))
 
     if not (1 <= inicio <= 65535 and 1 <= fin <= 65535) or inicio > fin:
-        raise ValueError(f"Rango de puertos inválido: {rango_puertos!r}")
+        raise ValueError(t("Rango de puertos inválido: {}").format(rango_puertos))
     return inicio, fin
 
 
@@ -53,7 +54,7 @@ def escanear_puertos_basicos(ip: str, rango_puertos: str = "1-1024") -> list:
                     try:
                         servicio = socket.getservbyport(puerto, "tcp")
                     except (OSError, ValueError):
-                        servicio = "desconocido"
+                        servicio = t("desconocido")
                     return {"puerto": puerto, "protocolo": "tcp", "estado": "abierto", "servicio": servicio}
         except (socket.error, OSError):
             pass
@@ -70,8 +71,8 @@ def analizar_objetivo(url_o_dominio: str, rango_puertos: str = "1-1024", permiti
     host = extraer_host(url_o_dominio)
     if not permitir_privadas and es_objetivo_privado(host):
         raise ValueError(
-            "El objetivo apunta a una dirección interna o privada (posible SSRF). "
-            "Activa 'Permitir red interna' en la barra lateral si es un objetivo de laboratorio."
+            t("El objetivo apunta a una dirección interna o privada (posible SSRF). "
+              "Activa 'Permitir red interna' en la barra lateral si es un objetivo de laboratorio.")
         )
     ip = obtener_ip(host)
     puertos = escanear_puertos_basicos(ip, rango_puertos)

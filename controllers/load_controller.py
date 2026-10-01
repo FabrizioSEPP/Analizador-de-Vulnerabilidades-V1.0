@@ -4,13 +4,14 @@ from models import history
 from models.load_model import LoadModel
 from views.components import aviso, aviso_html
 from views.load_view import mostrar as mostrar_load
+from models.i18n import t
 
 
 def ejecutar(url_input: str):
     from models.http_utils import validar_url, normalizar_url
 
     if not url_input.strip():
-        aviso("warning", "Por favor, ingresa una URL.")
+        aviso("warning", t("Por favor, ingresa una URL."))
         return
 
     url_input = normalizar_url(url_input)
@@ -27,7 +28,7 @@ def ejecutar(url_input: str):
         status_text.markdown(aviso_html("info", mensaje), unsafe_allow_html=True)
 
     tester = LoadModel()
-    with st.spinner("Ejecutando prueba de carga..."):
+    with st.spinner(t("Ejecutando prueba de carga...")):
         resultado = tester.analizar(url_input, callback=load_callback)
 
     history.guardar("load", url_input, resultado, st.session_state.get("current_user", ""))

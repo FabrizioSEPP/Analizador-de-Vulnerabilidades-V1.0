@@ -7,27 +7,30 @@ from views.dashboard_view import (
     grafico_latencia_percentiles, grafico_throughput,
     grafico_error_pie, grafico_gauge_pgi, grafico_barra_estado,
 )
+from models.i18n import t, es_o_en
 
 
 def mostrar(resultado: dict):
     section_header(
-        "Prueba de Capacidad",
-        "Latencia, throughput y grado de salud del sistema (PGI)",
+        es_o_en("Prueba de Capacidad", "Capacity Test"),
+        es_o_en("Latencia, throughput y grado de salud del sistema (PGI)",
+                "Latency, throughput and system health score (PGI)"),
         "⚡",
     )
 
     metricas = calcular_metricas_load(resultado)
     cards = [
-        {"label": "Capacidad estimada", "value": f'{metricas["capacidad"]} simultáneas',
+        {"label": es_o_en("Capacidad estimada", "Estimated capacity"),
+         "value": f'{metricas["capacidad"]} {es_o_en("simultáneas", "concurrent")}',
          "color": "ok" if metricas["capacidad"] > 10 else "high"},
-        {"label": "Latencia base", "value": f'{metricas["latencia_base"]:.4f}s', "color": "low"},
-        {"label": "Grado salud (PGI)", "value": f'{metricas["grado_pgi"]}/100',
+        {"label": es_o_en("Latencia base", "Baseline latency"), "value": f'{metricas["latencia_base"]:.4f}s', "color": "low"},
+        {"label": es_o_en("Grado salud (PGI)", "Health score (PGI)"), "value": f'{metricas["grado_pgi"]}/100',
          "color": "ok" if metricas["grado_pgi"] >= 75 else "high" if metricas["grado_pgi"] >= 50 else "crit"},
-        {"label": "Salud global", "value": metricas["salud_global"],
+        {"label": es_o_en("Salud global", "Overall health"), "value": t(str(metricas["salud_global"])),
          "color": "ok" if metricas["salud_global"] in ["Excelente", "Buena"] else "high" if metricas["salud_global"] == "Degradada" else "crit"},
-        {"label": "Tasa error máx", "value": f'{metricas["tasa_error_max"]:.2f}%',
+        {"label": es_o_en("Tasa error máx", "Max error rate"), "value": f'{metricas["tasa_error_max"]:.2f}%',
          "color": "crit" if metricas["tasa_error_max"] > 5 else "ok"},
-        {"label": "Volatilidad máx", "value": f'{metricas["volatilidad_max"]:.2f}',
+        {"label": es_o_en("Volatilidad máx", "Max volatility"), "value": f'{metricas["volatilidad_max"]:.2f}',
          "color": "med" if metricas["volatilidad_max"] > 0.5 else "ok"},
     ]
     kpi_grid(cards)
@@ -48,16 +51,20 @@ def mostrar(resultado: dict):
 
         st.plotly_chart(grafico_barra_estado(resultado["niveles"]), use_container_width=True)
 
-    section_header("Resumen de niveles", "Métricas por nivel de concurrencia")
+    section_header(es_o_en("Resumen de niveles", "Levels summary"),
+                   es_o_en("Métricas por nivel de concurrencia", "Metrics per concurrency level"))
     if resultado["niveles"]:
         tabla(pd.DataFrame(resultado["niveles"]))
     else:
         st.markdown(
-            '<div class="empty-state">No hay datos de niveles para mostrar.</div>',
+            '<div class="empty-state">%s</div>' % es_o_en("No hay datos de niveles para mostrar.",
+                                                         "No level data to show."),
             unsafe_allow_html=True,
         )
 
     if metricas["recomendaciones"]:
-        section_header("Recomendaciones de rendimiento", "Acciones sugeridas según el estado del sistema", "📋")
+        section_header(es_o_en("Recomendaciones de rendimiento", "Performance recommendations"),
+                       es_o_en("Acciones sugeridas según el estado del sistema",
+                               "Suggested actions based on system health"), "📋")
         for rec in metricas["recomendaciones"]:
-            st.markdown(rec)
+            st.markdown(t(str(rec)))
