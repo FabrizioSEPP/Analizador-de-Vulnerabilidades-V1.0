@@ -4,6 +4,11 @@ Herramienta de **pentesting ético** para detectar Inyección SQL y evaluar capa
 
 > ⚠️ **Uso responsable**: solo contra sistemas propios o con autorización escrita explícita del propietario. Escanear sistemas de terceros sin permiso puede ser ilegal.
 
+> **Este README es documentación para desarrollo** (arquitectura, dependencias, pruebas).
+> **El manual para quien usa la herramienta está dentro de la app**: botón
+> `❓ Ayuda y guía de uso` en la barra lateral y expander `🧭 Guía de uso` en el
+> área principal. Ver [`views/help_view.py`](views/help_view.py).
+
 ---
 
 ## Características principales
@@ -79,8 +84,10 @@ webvuln/
 │   ├── risk_score.py           # Puntuación de riesgo 0-100
 │   ├── remediation.py          # Guías de remediación
 │   ├── port_scanner.py         # Escaneo de puertos
-│   ├── auth_model.py           # Autenticación PBKDF2 contra Supabase
-│   ├── db.py                   # Cliente Supabase (service_role)
+│   ├── auth_model.py           # Autenticación PBKDF2 (Supabase o SQLite local)
+│   ├── db.py                   # Acceso a datos: Supabase (service_role) o SQLite local
+│   ├── db_local.py             # Fallback en SQLite (data/vulnweb.db) si no hay Supabase
+│   ├── i18n.py                 # Traducciones ES/EN y traducción de claves de resultados
 │   ├── history.py              # Persistencia de análisis y hallazgos
 │   └── metrics.py              # Métricas CVSS y PGI
 │
@@ -91,6 +98,7 @@ webvuln/
 │   ├── load_view.py            # Dashboard de Prueba de Capacidad
 │   ├── audit_view.py           # Dashboard de Auditoría Unificada
 │   ├── login_view.py           # Pantalla de acceso (login / registro)
+│   ├── help_view.py            # Guía de uso en la app: mapa de módulos, instructivo, referencia
 │   ├── history_view.py         # Historial reciente en la barra lateral
 │   └── dashboard_view.py       # Generadores de gráficos (Plotly)
 │
@@ -120,7 +128,7 @@ Todo el diseño (fondos, superficies, bordes, textos, tarjetas, tablas, avisos, 
 ## 3. Dependencias
 
 ```
-streamlit>=1.35
+streamlit>=1.42
 requests>=2.31
 pandas>=2.0
 plotly>=5.18
@@ -128,7 +136,14 @@ beautifulsoup4>=4.12
 scikit-learn>=1.3
 joblib>=1.3
 numpy>=1.24,<2.3
+supabase>=2.0
+python-dotenv>=1.0
 ```
+
+> **Por qué `streamlit>=1.42` y no `>=1.35`:** el código usa `st.container(key=...)`,
+> que no existe antes de 1.42, y `st.popover(...)` (los botones de ayuda de la barra
+> lateral), que no existe antes de 1.33. Con 1.35 la app arranca y falla al renderizar.
+> Verificado con Streamlit 1.63.0.
 
 Instalación:
 ```bash
@@ -163,6 +178,18 @@ Orquesta el crawler + `analizar_profundamente` en cada página y añade comproba
 - **CSP débil** (`unsafe-inline`, `unsafe-eval`, comodines).
 - **robots.txt** con rutas reveladas.
 Los hallazgos repetidos entre páginas se deduplican y se agrega un *score* 0-100.
+
+### `models/phishing_ml.py` — Detección de phishing con ML
+Random Forest sobre un modelo entrenado (`modelo/modelo_rf.pkl`) que clasifica una URL como phishing o legítima a partir de sus características léxicas y estructurales.
+
+> ⚠️ **Es el módulo más débil de la suite.** El conjunto de entrenamiento son
+> **40 URLs escritas a mano** en `entrenar_modelo()` (20 legítimas, 20 de
+> phishing), y las de phishing son obvias a propósito: IP cruda
+> (`192.168.1.1`), acortadores y dominios con guiones. El modelo termina
+> aprendiendo eso y poco más; generaliza mal. Úsalo como **una pista** dentro
+> de la auditoría, nunca como veredicto: confirmá a mano contra el análisis
+> profundo y el fingerprint del sitio. Para subirlo de nivel hace falta un
+> corpus real de URLs etiquetadas, no más ajustes del clasificador.
 
 ### `models/sqli_model.py` — Escáner de Inyección SQL
 **Técnicas:** error-based, boolean-based blind, time-based blind y **UNION-based** (enumera el nº de columnas), aplicadas a cada objetivo descubierto (GET o POST), incluyendo **variantes de evasión** (comentarios/tabuladores como separador, mayúsculas mezcladas).
@@ -205,7 +232,7 @@ Rampa de concurrencia creciente con umbrales de degradación (tasa error >10%, l
 - `is_authenticated()` → verifica si hay sesión activa
 - `logout()` → cierra sesión y limpia estado
 - `get_current_user()` → retorna nombre del usuario actual
-- Usuarios almacenados en Supabase (tabla `app_users`)
+- Usuarios almacenados en Supabase (tabla `app_users`) o, si no hay Supabase configurado, en SQLite local (`models/db_local.py`)
 
 ---
 
@@ -229,6 +256,33 @@ Componentes reutilizables de UI:
 - `ui_url_input_sidebar()` → Input de URL en la barra lateral
 - `ui_navigation_buttons()` → Botones de navegación horizontales (SQLi, Carga, Auditoría, Puertos)
 - `ui_execute_button()` → Botón de ejecución en la barra lateral
+- `ui_ayuda_modulos()` / `ui_ayuda_rapida()` / `ui_guia()` → Ayuda en dos niveles (ver `views/help_view.py`)
+- `_selector_nivel()` → Filtro Básico / Avanzado de los paneles de opciones
+
+### `views/help_view.py` — Guía de uso en la app
+Manual para el usuario final, escrito **dentro** de la aplicación para que esté
+disponible sin conexión ni archivos externos. Tres piezas:
+
+- **`guia()`** → guía completa en el área principal, en un expander
+  (`🧭 Guía de uso`) con tres pestañas: mapa de módulos, paso a paso y
+  referencia de opciones avanzadas.
+- **`ayuda_rapida()`** → los mismos pasos, en versión corta, dentro del popover
+  `❓ Ayuda y guía de uso` de la barra lateral.
+- **`ayuda_modulo(mode_id)`** → qué pregunta responde cada módulo, dentro de los
+  cuatro popoveres `❔` de la barra lateral.
+
+Dos decisiones de diseño que conviene conocer antes de tocarla:
+
+1. **El texto se guarda como pareja ES/EN y se elige con `es_o_en()`, no con
+   `t()`.** Las cadenas de la guía comparten palabras entre sí y son largas; el
+   diccionario de `models/i18n.py` está indexado por literal español, así que
+   tocar una coma rompe la traducción en silencio. Las etiquetas cortas de la
+   interfaz sí van por `t()`.
+2. **El mapa de módulos se escribe desde la pregunta, no desde el nombre
+   técnico.** Cada tarjeta abre con «¿alguien podría leer o borrar los datos de
+   mi base de datos desde la web?» y recién después da el término técnico
+   (detección de inyección SQL). Al revés no funciona: nadie elige un módulo por
+   su nombre técnico.
 
 ### `views/sqli_view.py`
 Dashboard de Inyección SQL:
@@ -332,11 +386,27 @@ docker run -d -p 80:80 vulnerables/web-dvwa
 
 ---
 
-## 10. Base de datos (Supabase + RLS)
+## 10. Base de datos (Supabase + RLS, o SQLite local)
 
-La app persiste **usuarios** y el **historial de análisis con sus hallazgos** en Supabase. La base de datos es **obligatoria**: sin `SUPABASE_URL` / `SUPABASE_KEY` no se puede iniciar sesión.
+La app persiste **usuarios** y el **historial de análisis con sus hallazgos**.
 
-### 10.1 Esquema
+**Supabase no es obligatoria.** Hay dos modos, y `models/db.py` elige el primero
+que esté disponible:
+
+| Modo | Cuándo se usa | Dónde caen los datos |
+|---|---|---|
+| **Supabase** | Hay `SUPABASE_URL` y `SUPABASE_KEY` configurados | Tablas `app_users`, `scans`, `scan_findings` |
+| **SQLite local** | No hay Supabase configurado | `data/vulnweb.db` (se crea sola) |
+
+En modo local la barra lateral avisa con **🗄️ Modo local: los usuarios y el
+historial se guardan en `data/vulnweb.db` (SQLite)**. Ese mensaje no es un
+error: es el modo por defecto para una instalación nueva, y funciona sin
+configurar nada.
+
+> `data/` está en `.gitignore`. Si borras `data/vulnweb.db` pierdes las cuentas
+> locales; para un despliegue compartido conviene configurar Supabase.
+
+### 10.1 Esquema (Supabase)
 
 | Tabla | Contenido |
 |---|---|
@@ -346,8 +416,11 @@ La app persiste **usuarios** y el **historial de análisis con sus hallazgos** e
 
 Índices: `scans(username, created_at desc)` y `scan_findings(scan_id)`.
 
-### 10.2 Configuración
+### 10.2 Configuración (opcional)
 
+**Modo local (por defecto):** no hay nada que configurar. `pip install -r requirements.txt`, `streamlit run app.py`, y la app crea `data/vulnweb.db` sola.
+
+**Modo Supabase:**
 1. Rellena tus credenciales en el archivo **`.env`** de la raíz:
    ```env
    SUPABASE_URL=https://tu-proyecto.supabase.co
@@ -357,7 +430,7 @@ La app persiste **usuarios** y el **historial de análisis con sus hallazgos** e
 2. `pip install -r requirements.txt` (incluye `supabase>=2.0` y `python-dotenv>=1.0`).
 3. Arranca la app.
 
-La barra lateral indica **🗄️ Supabase conectado**; si falta la configuración, muestra **⚠️ Supabase sin configurar** y el login avisa.
+La barra lateral indica **🗄️ Supabase conectado** cuando usa Supabase, y el aviso de **modo local** cuando cae a SQLite.
 
 > ⚠️ Usa la clave **`service_role`** y **nunca** la expongas en el navegador. Vive solo en `.env`, que está en `.gitignore`.
 
