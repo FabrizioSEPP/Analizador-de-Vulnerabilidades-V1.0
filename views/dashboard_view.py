@@ -1,9 +1,15 @@
 import plotly.graph_objects as go
 import pandas as pd
+import streamlit as st
 
+from models import history
 from models.metrics import nivel_riesgo
 from models.load_model import DURACION_MAXIMA_POR_NIVEL
-from views.components import colores_actuales
+from views.components import (
+    colores_actuales, kpi_grid, section_header, tabla,
+    ui_audit_options, ui_authorization_check, ui_internal_network_toggle,
+    ui_theme_selector,
+)
 
 _SEV_KEY = {"Crítica": "crit", "Alta": "high", "Media": "med", "Baja": "low", "Info": "info"}
 
@@ -258,3 +264,222 @@ def grafico_barra_estado(niveles: list) -> go.Figure:
                       xaxis_title="Concurrencia", yaxis_title="%",
                       legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0))
     return _tema_carga(fig)
+
+
+def mostrar_dashboard(registros: list, supabase_configurado: bool):
+    registros = [item for item in (registros or []) if item.get("modulo") != "sqli"]
+    etiquetas_modulo = {
+        "load": "Prueba de Carga",
+        "audit": "Auditoría Unificada",
+        "port": "Escaneo de Puertos",
+    }
+    objetivos = {str(item.get("url", "")).strip() for item in registros if item.get("url")}
+    modulos = {item.get("modulo") for item in registros if item.get("modulo")}
+    total_hallazgos = sum(int(item.get("total_hallazgos") or 0) for item in registros)
+
+    section_header(
+        "Resumen de seguridad",
+        "Actividad reciente y resultados registrados",
+        "🛡️",
+    )
+    kpi_grid([
+        {"label": "Análisis recientes", "value": len(registros), "sub": "Hasta 10 registros", "color": "primary"},
+        {"label": "Hallazgos registrados", "value": total_hallazgos, "color": "high"},
+        {"label": "Objetivos analizados", "value": len(objetivos), "color": "low"},
+        {"label": "Módulos con actividad", "value": len(modulos), "color": "ok"},
+    ])
+
+    columna_actividad, columna_modulos = st.columns([1.4, 1])
+    with columna_actividad:
+        section_header("Evolución de actividad", "Análisis guardados por fecha", "📈")
+        actividad = pd.DataFrame([
+            {"fecha": pd.to_datetime(item.get("created_at"), errors="coerce", utc=True)}
+            for item in registros
+        ]).dropna()
+        if not actividad.empty:
+            actividad = actividad.sort_values("fecha")
+            actividad["día"] = actividad["fecha"].dt.strftime("%d %b")
+            diario = actividad.groupby("día", sort=False).size().reset_index(name="análisis")
+            figura_actividad = go.Figure(go.Scatter(
+                x=diario["día"], y=diario["análisis"], mode="lines+markers",
+                line=dict(color="#22d3ee", width=3),
+                marker=dict(color="#22d3ee", size=8),
+                fill="tozeroy", fillcolor="rgba(34,211,238,0.10)",
+                hovertemplate="%{x}<br>Análisis: %{y}<extra></extra>",
+            ))
+            figura_actividad.update_layout(
+                title="Análisis por día", yaxis_title="Análisis",
+                xaxis_title="", showlegend=False, height=300,
+            )
+            st.plotly_chart(_tema(figura_actividad), use_container_width=True)
+        else:
+            st.info("Todavía no hay fechas de análisis para mostrar.")
+
+    with columna_modulos:
+        section_header("Actividad por módulo", "Distribución de análisis guardados", "◉")
+        conteo_modulos = {}
+        for item in registros:
+            modulo = item.get("modulo", "")
+            etiqueta = etiquetas_modulo.get(modulo, modulo or "Otro")
+            conteo_modulos[etiqueta] = conteo_modulos.get(etiqueta, 0) + 1
+        if conteo_modulos:
+            paleta = {"Prueba de Carga": "#22c55e", "Auditoría Unificada": "#22d3ee",
+                      "Escaneo de Puertos": "#3b82f6"}
+            figura_modulos = go.Figure(data=[go.Pie(
+                labels=list(conteo_modulos), values=list(conteo_modulos.values()),
+                hole=0.64,
+                marker=dict(colors=[paleta.get(nombre, "#64748b") for nombre in conteo_modulos]),
+                textinfo="label+percent", textfont=dict(color=colores_actuales()["text"]),
+            )])
+            figura_modulos.update_layout(
+                showlegend=False, height=300,
+                annotations=[dict(
+                    text=f"{len(registros)}<br><span style='font-size:11px'>análisis</span>",
+                    x=0.5, y=0.5, showarrow=False,
+                    font=dict(size=20, color=colores_actuales()["text"]),
+                )],
+                margin=dict(t=24, b=20, l=12, r=12),
+            )
+            st.plotly_chart(_tema(figura_modulos), use_container_width=True)
+        else:
+            st.info("La distribución aparecerá cuando haya análisis registrados.")
+
+    section_header("Historial de auditorías", "Últimos análisis guardados", "🗂️")
+    if registros:
+        filas = [{
+            "Fecha": str(item.get("created_at", "")).replace("T", " ")[:16],
+            "Módulo": etiquetas_modulo.get(item.get("modulo"), item.get("modulo", "")),
+            "Objetivo": item.get("url", ""),
+            "Hallazgos": int(item.get("total_hallazgos") or 0),
+            "Nivel": item.get("nivel") or "—",
+        } for item in registros]
+        tabla(pd.DataFrame(filas))
+    else:
+        st.info("No hay análisis guardados todavía. El historial aparecerá aquí al completar un análisis.")
+
+    estado_datos = "Configurado" if supabase_configurado else "No configurado"
+    st.caption(f"Almacenamiento de historial: Supabase {estado_datos}.")
+
+
+def mostrar_seccion(seccion: str, registros: list, supabase_configurado: bool):
+    nombres = {
+        "vulnerabilities": "Vulnerabilidades",
+        "assets": "Activos",
+        "monitoring": "Monitoreo",
+        "reports": "Reportes",
+        "settings": "Configuración",
+    }
+    if seccion not in nombres:
+        st.info("Selecciona una sección del menú.")
+        return
+
+    registros = [item for item in (registros or []) if item.get("modulo") != "sqli"]
+    section_header(nombres[seccion], "Datos disponibles del historial de análisis", "◈")
+
+    if seccion == "vulnerabilities":
+        filas = []
+        for registro in registros:
+            scan_id = registro.get("id")
+            for hallazgo in history.detalle(scan_id) if scan_id else []:
+                filas.append({
+                    "Fecha": str(registro.get("created_at", "")).replace("T", " ")[:16],
+                    "Objetivo": registro.get("url", ""),
+                    "Módulo": registro.get("modulo", ""),
+                    "Hallazgo": hallazgo.get("descripcion") or hallazgo.get("tipo") or "Hallazgo",
+                    "Severidad": hallazgo.get("severidad") or hallazgo.get("nivel_riesgo") or "INFO",
+                    "OWASP": hallazgo.get("owasp") or "—",
+                })
+        if filas:
+            df_hallazgos = pd.DataFrame(filas)
+            kpi_grid([
+                {"label": "Hallazgos", "value": len(filas), "color": "high"},
+                {"label": "Críticos", "value": sum(normalize_severity(f) == "CRÍTICO" for f in df_hallazgos["Severidad"]), "color": "crit"},
+                {"label": "Altos", "value": sum(normalize_severity(f) == "ALTO" for f in df_hallazgos["Severidad"]), "color": "high"},
+            ])
+            tabla(df_hallazgos)
+        else:
+            st.info("No hay vulnerabilidades guardadas en los análisis recientes.")
+
+    elif seccion == "assets":
+        activos = {}
+        for registro in registros:
+            objetivo = str(registro.get("url") or "").strip()
+            if objetivo and objetivo not in activos:
+                activos[objetivo] = {
+                    "Objetivo": objetivo,
+                    "Último análisis": str(registro.get("created_at", "")).replace("T", " ")[:16],
+                    "Módulo": registro.get("modulo", ""),
+                    "Hallazgos": int(registro.get("total_hallazgos") or 0),
+                }
+        if activos:
+            kpi_grid([
+                {"label": "Objetivos registrados", "value": len(activos), "color": "low"},
+                {"label": "Registros revisados", "value": len(registros), "color": "primary"},
+            ])
+            tabla(pd.DataFrame(list(activos.values())))
+        else:
+            st.info("Los objetivos aparecerán aquí después de guardar un análisis.")
+
+    elif seccion == "monitoring":
+        if registros:
+            fechas = pd.to_datetime(
+                [registro.get("created_at") for registro in registros],
+                errors="coerce", utc=True,
+            ).dropna().sort_values()
+            última_fecha = fechas.max().strftime("%Y-%m-%d %H:%M UTC") if not fechas.empty else "Fecha no disponible"
+            módulos = {registro.get("modulo") for registro in registros if registro.get("modulo")}
+            kpi_grid([
+                {"label": "Análisis registrados", "value": len(registros), "color": "primary"},
+                {"label": "Módulos con actividad", "value": len(módulos), "color": "ok"},
+                {"label": "Actividad más reciente", "value": última_fecha, "color": "low"},
+            ])
+            tabla(pd.DataFrame([{
+                "Fecha": str(registro.get("created_at", "")).replace("T", " ")[:16],
+                "Módulo": registro.get("modulo", ""),
+                "Objetivo": registro.get("url", ""),
+                "Hallazgos": int(registro.get("total_hallazgos") or 0),
+            } for registro in registros]))
+            st.caption("La actividad refleja análisis guardados; no representa monitoreo en tiempo real.")
+        else:
+            st.info("No hay actividad de análisis registrada todavía.")
+
+    elif seccion == "reports":
+        if registros:
+            informe = pd.DataFrame([{
+                "fecha": registro.get("created_at", ""),
+                "modulo": registro.get("modulo", ""),
+                "objetivo": registro.get("url", ""),
+                "hallazgos": int(registro.get("total_hallazgos") or 0),
+                "nivel": registro.get("nivel") or "",
+                "score": registro.get("score") if registro.get("score") is not None else "",
+            } for registro in registros])
+            st.download_button(
+                "Descargar CSV",
+                data=informe.to_csv(index=False).encode("utf-8-sig"),
+                file_name="reporte_vulnweb.csv",
+                mime="text/csv",
+                key="download_vulnweb_report",
+            )
+            tabla(informe)
+        else:
+            st.info("No hay análisis guardados para generar un reporte.")
+
+    elif seccion == "settings":
+        columna_opciones, columna_apariencia = st.columns([1.4, 1])
+        with columna_opciones:
+            section_header("Autorización", "Condiciones previas de análisis", "🔐")
+            ui_authorization_check(st.session_state.get("autorizado", False))
+            section_header("Red y auditoría", "Preferencias de esta sesión", "⚙️")
+            ui_internal_network_toggle()
+            ui_audit_options()
+        with columna_apariencia:
+            section_header("Apariencia y almacenamiento", "Estado actual", "🎨")
+            ui_theme_selector()
+            estado_datos = "Conectado" if supabase_configurado else "No configurado"
+            st.markdown(
+                f'<div style="background:#0b1a33;border:1px solid #12305a;'
+                f'border-radius:8px;padding:14px;color:#e6edf7">'
+                f'<div style="color:#9bb0c8;font-size:12px">Historial de análisis</div>'
+                f'<div style="font-weight:700;margin-top:7px">Supabase: {estado_datos}</div></div>',
+                unsafe_allow_html=True,
+            )

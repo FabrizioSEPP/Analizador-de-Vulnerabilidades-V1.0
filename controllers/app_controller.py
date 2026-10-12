@@ -1,21 +1,23 @@
+from html import escape
+
 import streamlit as st
-from controllers.sqli_controller import ejecutar as ejecutar_sqli
 from controllers.load_controller import ejecutar as ejecutar_load
 from controllers.audit_controller import ejecutar_audit_unificado, ejecutar_port_scan
-from models import db
+from models import db, history
 from models.auth_model import logout
 from views.components import (
-    ui_sidebar, ui_authorization_check, ui_url_input_sidebar,
-    ui_navigation_buttons, ui_execute_button, ui_internal_network_toggle,
-    ui_audit_options, ui_sqli_options, ui_theme_selector, hero_header, aviso,
+    ui_sidebar, ui_url_input_sidebar, ui_execute_button,
+    hero_header, aviso,
     css_tema, CSS_STYLES,
 )
 from views.login_view import mostrar as mostrar_login
 from views.history_view import mostrar_historial
+from views.dashboard_view import mostrar_dashboard, mostrar_seccion
+from views.audit_view import mostrar_inicio as mostrar_inicio_auditoria
 
 
 def run():
-    st.set_page_config(page_title="Analizador de Vulnerabilidades Web", layout="wide")
+    st.set_page_config(page_title="Corporativa Matheus | Ciberseguridad", layout="wide")
 
     # El tema debe fijarse antes de inyectar el CSS.
     st.session_state.setdefault("tema", "sistema")
@@ -23,30 +25,11 @@ def run():
     st.session_state.setdefault("permitir_privadas", False)
     st.session_state.setdefault("crawl_profundidad", 2)
     st.session_state.setdefault("crawl_max_paginas", 15)
-    # Opciones del escáner SQLi INTEGRADAS por defecto: basta pulsar
-    # "Ejecutar análisis" en modo Inyección SQL; no hace falta abrir el panel.
-    _OPCIONES_SQLI = {
-        "sqli_headers": "",              # cookies/Authorization: no se puede adivinar
-        "sqli_pausa": 0.0,
-        "sqli_max_objetivos": 8,         # menos puntos = más rápido
-        "sqli_tiempo_maximo": 600,       # tope de tiempo (0 = sin límite)
-        "sqli_max_peticiones": 4000,
-        "sqli_probar_cabeceras": True,   # User-Agent, Referer, X-Forwarded-For
-        "sqli_probar_json": True,        # cuerpo JSON (APIs/SPA)
-        "sqli_extraer": True,            # extracción UNION (versión/BD/usuario/tablas)
-        "sqli_probar_apis": True,        # endpoints de API desde el JS
-        "sqli_usar_navegador": True,     # navegador headless si Playwright está
-        "sqli_confirmar": True,          # confirmación estricta (menos falsos positivos)
-        "sqli_abortar_waf": False,       # NO detenerse ante bloqueos (más cobertura)
-        "sqli_segundo_orden": False,     # intrusivo: requiere activación explícita
-    }
-    # v4: se aplican aunque la sesión ya existiera (para que tome efecto ya).
-    if st.session_state.get("_opciones_sqli_v") != 4:
-        st.session_state.update(_OPCIONES_SQLI)
-        st.session_state["_opciones_sqli_v"] = 4
-
+    st.session_state.setdefault("app_view", "dashboard")
     st.markdown(CSS_STYLES + css_tema(), unsafe_allow_html=True)
 
+    st.session_state["logged_in"] = True
+    st.session_state["current_user"] = "local"
     if not st.session_state.get("logged_in", False):
         mostrar_login()
         return
@@ -55,55 +38,77 @@ def run():
     with st.sidebar:
         ui_sidebar()
         autorizado = st.session_state.get("autorizado", False)
-        selected_mode = ui_navigation_buttons(
-            st.session_state.get("selected_mode", "sqli"), autorizado
-        )
-        autorizado = ui_authorization_check(False)
-        ui_internal_network_toggle()
-        ui_sqli_options()
-        ui_audit_options()
+        modo_actual = st.session_state.get("selected_mode", "audit")
+        if modo_actual not in {"load", "audit", "port"}:
+            modo_actual = "audit"
+            st.session_state["selected_mode"] = modo_actual
+        selected_mode = modo_actual
+        pagina_actual = st.session_state.get("app_view", "dashboard")
+        autorizado = st.session_state.get("autorizado", False)
         mostrar_historial(user)
-        with st.container(key="sidebar-user-card"):
-            st.markdown(f"👤 **{user}**")
-            st.caption("🗄️ Supabase conectado" if db.esta_configurado() else "⚠️ Supabase sin configurar")
-            if st.button("🚪 Cerrar Sesión", use_container_width=True, key="logout_btn"):
-                logout()
-        with st.container(key="sidebar-theme-compact"):
-            ui_theme_selector()
         st.markdown(
             '<div class="sidebar-system-status">'
             '<span class="sidebar-system-status-dot"></span>'
-            '<span>Sistema activo - Todos los módulos operativos</span></div>',
+            '<div><div>Sistema activo</div>'
+            '<div class="sidebar-system-status-sub">Todos los módulos operativos</div></div></div>',
             unsafe_allow_html=True,
         )
+        supabase_configurado = db.esta_configurado()
+        with st.container(key="sidebar-user-card"):
+            st.markdown(
+                '<div class="sidebar-profile-head">'
+                '<div class="sidebar-profile-avatar">👤</div>'
+                '<div><div class="sidebar-profile-name">'
+                f'{escape(user or "Usuario")}'
+                '</div><div class="sidebar-profile-role">Sesión local</div></div></div>'
+                f'<div class="sidebar-profile-database">'
+                f'<span class="sidebar-profile-dot {"online" if supabase_configurado else "offline"}"></span>'
+                f'{"Supabase conectado" if supabase_configurado else "Supabase no configurado"}</div>',
+                unsafe_allow_html=True,
+            )
+            if st.button("Cerrar Sesión", use_container_width=True, key="logout_btn"):
+                logout()
 
     with st.container(key="main-toolbar"):
-        toolbar_columns = st.columns([6, 2, 2], vertical_alignment="center")
+        toolbar_columns = st.columns([6, 2, 1.8, 0.55], vertical_alignment="center")
         with toolbar_columns[0]:
             url_input = ui_url_input_sidebar(st.session_state.get("sidebar_url", ""))
         with toolbar_columns[1]:
-            ejecutar = ui_execute_button(autorizado, url_input)
+            ejecutar = ui_execute_button(autorizado, url_input, "▶ Ejecutar análisis")
         with toolbar_columns[2]:
             st.markdown(
                 '<div class="system-status"><span class="system-status-dot"></span>'
                 '<span>Sistema activo</span></div>',
                 unsafe_allow_html=True,
             )
-
-    hero_header(url_input, selected_mode, autorizado)
+        with toolbar_columns[3]:
+            if st.button(
+                " ", icon=":material/account_circle:",
+                help="Abrir configuración de perfil", key="toolbar_profile",
+                use_container_width=True,
+            ):
+                st.session_state["app_view"] = "settings"
+                st.rerun()
 
     if ejecutar and autorizado and url_input.strip():
+        hero_header(url_input, selected_mode, autorizado)
         _dispatch(selected_mode, url_input.strip())
-    elif not autorizado:
-        aviso("info", "🔒 Confirma tu autorización en la barra lateral para comenzar el análisis.")
-    elif not url_input.strip():
-        aviso("warning", "Ingresa una URL en la barra lateral para comenzar.")
+    else:
+        if not autorizado and st.session_state.get("app_view") == "dashboard":
+            aviso("info", "🔒 Ve a Configuración para confirmar la autorización y ajustar los permisos de red.")
+        registros = history.recientes(user, limite=10)
+        if st.session_state.get("app_view") == "audit":
+            mostrar_inicio_auditoria(url_input, autorizado, selected_mode, registros)
+        elif st.session_state.get("app_view") == "dashboard":
+            mostrar_dashboard(registros, db.esta_configurado())
+        else:
+            mostrar_seccion(
+                st.session_state["app_view"], registros, db.esta_configurado()
+            )
 
 
 def _dispatch(mode: str, url: str):
-    if mode == "sqli":
-        ejecutar_sqli(url)
-    elif mode == "load":
+    if mode == "load":
         ejecutar_load(url)
     elif mode == "audit":
         ejecutar_audit_unificado(url)

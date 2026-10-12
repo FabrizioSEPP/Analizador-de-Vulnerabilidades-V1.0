@@ -1,5 +1,7 @@
 import streamlit as st
 import pandas as pd
+import plotly.graph_objects as go
+import time
 
 from models import history
 from models.http_utils import validar_url, normalizar_url
@@ -70,10 +72,12 @@ def ejecutar_port_scan(url_input: str):
 
     try:
         progress_bar.progress(0.2, "Resolviendo host...")
+        t_inicio = time.time()
         resultado = escanear(
             url_input, "1-1024",
             permitir_privadas=st.session_state.get("permitir_privadas", False),
         )
+        duracion_escaneo = time.time() - t_inicio
         progress_bar.progress(0.8, "Escaneando puertos...")
         status_text.empty()
         progress_bar.progress(1.0, "Escaneo completado")
@@ -86,10 +90,105 @@ def ejecutar_port_scan(url_input: str):
             f"**Puertos abiertos:** {resultado['total_puertos']}"
         )
 
-        if resultado["puertos"]:
-            tabla(pd.DataFrame(resultado["puertos"]))
+        puertos = resultado.get("puertos", [])
+        total_abiertos = int(resultado.get("total_puertos", len(puertos)))
+        servicios = {str(p.get("servicio") or "desconocido") for p in puertos}
+        if duracion_escaneo < 60:
+            duracion_texto = f"{duracion_escaneo:.1f}s"
         else:
-            aviso("success", "No se encontraron puertos abiertos en el rango escaneado.")
+            minutos, segundos = divmod(int(duracion_escaneo), 60)
+            duracion_texto = f"{minutos}m {segundos}s"
+
+        metricas = st.columns(4)
+        datos_metricas = [
+            ("Puertos abiertos", total_abiertos, "#ef4444"),
+            ("Servicios", len(servicios), "#22d3ee"),
+            ("Estado", "Completado", "#22c55e"),
+            ("Tiempo de escaneo", duracion_texto, "#22d3ee"),
+        ]
+        for columna, (etiqueta, valor, color) in zip(metricas, datos_metricas):
+            with columna:
+                valor_html = (
+                    '<span style="display:inline-block;background:#166534;color:#dcfce7;'
+                    'padding:3px 9px;border-radius:999px">Completado</span>'
+                    if etiqueta == "Estado" else str(valor)
+                )
+                st.markdown(
+                    f'<div style="background:#0b1a33;border:1px solid #12305a;'
+                    f'border-radius:8px;padding:14px 16px;min-height:88px">'
+                    f'<div style="color:#9fb3d1;font-size:13px">{etiqueta}</div>'
+                    f'<div style="color:{color};font-size:22px;font-weight:700;'
+                    f'margin-top:8px">{valor_html}</div></div>',
+                    unsafe_allow_html=True,
+                )
+
+        st.divider()
+        col_tabla, col_donut = st.columns([1.5, 1])
+
+        with col_tabla:
+            section_header("Puertos encontrados", "Servicios TCP detectados", "🔌")
+            if puertos:
+                tabla(pd.DataFrame(puertos))
+            else:
+                aviso("info", "No se encontraron puertos abiertos.")
+
+        with col_donut:
+            section_header("Distribución de puertos", "Rango escaneado: 1-1024", "📊")
+            figura = go.Figure(data=[go.Pie(
+                labels=["Abiertos", "Cerrados"],
+                values=[total_abiertos, max(0, 1024 - total_abiertos)],
+                marker=dict(colors=["#22d3ee", "#12305a"]),
+                hole=0.68,
+                textinfo="none",
+                sort=False,
+            )])
+            figura.update_layout(
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(0,0,0,0)",
+                font=dict(color="#e6edf7"),
+                showlegend=True,
+                legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=0.9),
+                height=260,
+                margin=dict(t=10, b=10, l=10, r=10),
+                annotations=[dict(
+                    text=f"{total_abiertos}<br><span style='font-size:12px'>abiertos</span>",
+                    x=0.5, y=0.5, showarrow=False, font=dict(size=20, color="#e6edf7"),
+                )],
+            )
+            st.plotly_chart(figura, use_container_width=True)
+
+        st.divider()
+        col_terminal, col_recom = st.columns([1.5, 1])
+
+        with col_terminal:
+            section_header("Detalles del escaneo", "Salida TCP del objetivo", "📋")
+            lineas_detalle = [
+                f"Escaneo TCP: {resultado.get('host', url_input)} ({resultado.get('ip', 'IP no disponible')})",
+                "PUERTO/PROTOCOLO  ESTADO    SERVICIO",
+            ]
+            lineas_detalle.extend(
+                f"{puerto.get('puerto', '?')}/{puerto.get('protocolo', 'tcp')}               "
+                f"{puerto.get('estado', 'desconocido')}  {puerto.get('servicio') or 'desconocido'}"
+                for puerto in puertos
+            )
+            if not puertos:
+                lineas_detalle.append("No se encontraron puertos abiertos.")
+            st.markdown(
+                "<style>div[data-testid='stCode'] pre {background:#0b1a33 !important; "
+                "border:1px solid #12305a; border-radius:14px; color:#e6edf7;}</style>",
+                unsafe_allow_html=True,
+            )
+            st.code("\n".join(lineas_detalle), language="bash")
+
+        with col_recom:
+            section_header("Recomendaciones", "Buenas prácticas de seguridad", "📋")
+            st.markdown(
+                "- Mantener únicamente los servicios necesarios.\n"
+                "- Implementar reglas de firewall y filtrado.\n"
+                "- Revisar periódicamente los servicios expuestos.\n"
+                "- Aplicar actualizaciones y parches a los servicios."
+            )
+            st.button("Ver informe completo", use_container_width=True, key="port_scan_report_placeholder")
 
         progress_bar.empty()
     except ValueError as e:

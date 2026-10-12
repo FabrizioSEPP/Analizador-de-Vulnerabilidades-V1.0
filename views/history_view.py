@@ -5,7 +5,6 @@ import streamlit as st
 from models import history
 
 _MODULO_LABEL = {
-    "sqli": "🔍 Inyección SQL",
     "load": "⚡ Carga",
     "audit": "🛡️ Auditoría",
     "port": "🔌 Puertos",
@@ -19,6 +18,7 @@ def mostrar_historial(username: str):
         items = history.recientes(username, limite=12)
     except Exception:
         items = []
+    items = [item for item in items if item.get("modulo") != "sqli"]
     if not items:
         return
 
