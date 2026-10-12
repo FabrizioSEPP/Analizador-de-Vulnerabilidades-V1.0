@@ -607,6 +607,141 @@ CSS_STYLES = """
     }
     table.data-table tr:last-child td { border-bottom: none; }
     table.data-table tr:hover td { background: var(--surface-2); }
+/* Guía de uso: mapa de módulos, instructivo y referencia de opciones */
+    .help-intro {
+        font-size: .82rem; line-height: 1.55; color: var(--muted);
+        margin: 4px 0 12px;
+    }
+    .help-grid {
+        display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+        /* grid-auto-rows: 1fr iguala la altura de todas las filas, para que las
+           cuatro tarjetas queden simétricas aunque el texto sea de largo distinto. */
+        grid-auto-rows: 1fr;
+        gap: 14px; margin: 6px 0 4px;
+    }
+    @media (max-width: 1250px) { .help-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 640px)  { .help-grid { grid-template-columns: 1fr; } }
+    .help-card {
+        display: flex; flex-direction: column; gap: 9px;
+        min-height: 300px; padding: 17px 16px;
+        border: 1px solid var(--border); border-radius: var(--radius);
+        background: var(--surface);
+    }
+    .help-card-icon { font-size: 1.5rem; line-height: 1; }
+    .help-card-title { font-size: .95rem; font-weight: 700; color: var(--text); }
+    .help-card-pregunta {
+        font-size: .85rem; font-weight: 600; line-height: 1.45; color: var(--primary-2);
+    }
+    .help-card-desc { font-size: .78rem; line-height: 1.55; color: var(--muted); flex: 1; }
+    .help-card-entrega {
+        font-size: .77rem; line-height: 1.5; color: var(--muted);
+        padding: 9px 11px; border-radius: var(--radius-sm);
+        background: var(--surface-2); border: 1px solid var(--border-soft);
+    }
+    .help-card-entrega b { color: var(--text); font-weight: 700; }
+    .help-card-foot {
+        font-size: .73rem; line-height: 1.45; color: var(--muted-2);
+        padding-top: 10px; border-top: 1px solid var(--border-soft);
+    }
+
+    /* Popover de ayuda de un módulo */
+    .help-pop-title { font-size: .9rem; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+    .help-pop-body { font-size: .78rem; line-height: 1.55; color: var(--muted); margin-top: 8px; }
+    .help-pop-entrega {
+        font-size: .77rem; line-height: 1.5; color: var(--muted); margin-top: 9px;
+        padding: 8px 10px; border-radius: var(--radius-sm);
+        background: var(--surface-2); border: 1px solid var(--border-soft);
+    }
+    .help-pop-entrega b { color: var(--text); font-weight: 700; }
+    .help-pop-foot {
+        font-size: .73rem; line-height: 1.45; color: var(--muted-2);
+        margin-top: 9px; padding-top: 8px; border-top: 1px solid var(--border-soft);
+    }
+
+    /* Instructivo paso a paso */
+    .step-list { display: flex; flex-direction: column; gap: 8px; margin: 4px 0; }
+    .step {
+        display: flex; gap: 12px; align-items: flex-start;
+        padding: 12px 14px; border: 1px solid var(--border-soft);
+        border-radius: var(--radius-sm); background: var(--surface);
+    }
+    .step-num {
+        flex: 0 0 25px; width: 25px; height: 25px; border-radius: 50%;
+        display: grid; place-items: center;
+        font-size: .72rem; font-weight: 800; color: var(--background-color);
+        background: var(--primary-2);
+    }
+    .step-title { font-size: .86rem; font-weight: 700; color: var(--text); }
+    .step-desc { font-size: .79rem; line-height: 1.55; color: var(--muted); }
+
+    /* Referencia de opciones, agrupada por intención */
+    .opt-group { margin: 16px 0 4px; }
+    .opt-group:first-child { margin-top: 4px; }
+    .opt-group-title {
+        font-size: .82rem; font-weight: 700; color: var(--text);
+        padding-bottom: 7px; margin-bottom: 4px;
+        border-bottom: 1px solid var(--border);
+    }
+    .opt-row {
+        display: flex; gap: 16px; align-items: baseline;
+        padding: 9px 2px; border-bottom: 1px dashed var(--border-soft);
+    }
+    .opt-row:last-child { border-bottom: none; }
+    .opt-name {
+        flex: 0 0 210px; font-size: .78rem; font-weight: 600; color: var(--primary-2);
+    }
+    .opt-what { flex: 1; font-size: .79rem; line-height: 1.55; color: var(--muted); }
+    @media (max-width: 900px) {
+        .opt-row { flex-direction: column; gap: 3px; }
+        .opt-name { flex: 1; }
+    }
+    .opt-group-warn {
+        padding: 12px 14px; border-radius: var(--radius-sm);
+        border: 1px solid rgba(220, 38, 38, .38); background: rgba(220, 38, 38, .08);
+    }
+    .opt-group-warn .opt-group-title { color: var(--crit); border-bottom-color: rgba(220, 38, 38, .28); }
+    .opt-group-warn .opt-what { color: var(--text); }
+
+    /* Nota neutral: módulos sin panel de opciones */
+    .opt-nota {
+        padding: 12px 14px; border-radius: var(--radius-sm);
+        border: 1px dashed var(--border);
+        background: var(--surface-2);
+    }
+    .opt-nota .opt-group-title {
+        color: var(--muted); border-bottom: none;
+        padding-bottom: 0; margin-bottom: 2px;
+    }
+    .opt-nota .opt-what { color: var(--muted); }
+
+    /* Botón de guía rápida de la barra lateral */
+    .st-key-nav_ayuda .stButton > button {
+        font-weight: 600; font-size: .78rem;
+        border-radius: 999px; border-style: solid; border-width: 1px;
+        border-color: var(--border); background: var(--surface-2);
+    }
+    .st-key-nav_ayuda .stButton > button:hover {
+        border-color: var(--primary-2) !important;
+        box-shadow: 0 0 14px rgba(34, 211, 238, .22) !important;
+    }
+
+    /* Botón de ayuda del módulo activo, junto al banner */
+    .st-key-ayuda_modulo_sqli .stButton > button,
+    .st-key-ayuda_modulo_load .stButton > button,
+    .st-key-ayuda_modulo_audit .stButton > button,
+    .st-key-ayuda_modulo_port .stButton > button {
+        font-weight: 600; font-size: .78rem; color: var(--muted);
+        border-radius: 999px; border-style: solid; border-width: 1px;
+        border-color: var(--border); background: transparent;
+        margin-top: 0;
+    }
+    .st-key-ayuda_modulo_sqli .stButton > button:hover,
+    .st-key-ayuda_modulo_load .stButton > button:hover,
+    .st-key-ayuda_modulo_audit .stButton > button:hover,
+    .st-key-ayuda_modulo_port .stButton > button:hover {
+        color: var(--primary-2); border-color: var(--primary-2) !important;
+        box-shadow: 0 0 14px rgba(34, 211, 238, .22) !important;
+    }
 </style>
 """
 
@@ -658,21 +793,48 @@ def hero_header(url: str = "", modo: str = "", autorizado: bool = False):
         "audit": es_o_en("Auditoría Unificada", "Unified Audit"),
         "port": es_o_en("Escaneo de Puertos", "Port Scan"),
     }
+    valido = modo in modos
     modo_label = modos.get(modo, "—")
     estado = es_o_en("Autorizado", "Authorized") if autorizado else es_o_en("Sin autorización", "Not authorized")
     clase = "ok" if autorizado else "warn"
     objetivo = _html.escape(url) if url else es_o_en("sin objetivo", "no target")
-    st.markdown(
-        f'<div class="app-hero">'
-        f'<div><div class="hero-title">🛡️ {es_o_en("Analizador de Vulnerabilidades Web", "Web Vulnerability Analyzer")}</div>'
-        f'<div class="hero-sub">Pentesting ético · CVSS · PGI · OWASP</div></div>'
-        f'<div class="hero-right">'
-        f'<span class="pill pill-mode">🧭 {modo_label}</span>'
-        f'<span class="pill pill-{clase}">● {estado}</span>'
-        f'<span class="pill pill-target" title="{objetivo}">🎯 {objetivo}</span>'
-        f'</div></div>',
-        unsafe_allow_html=True,
-    )
+
+    # El banner y el botón de ayuda comparten fila: el popover explica el módulo
+    # que se está viendo, no los cuatro. Va aquí y no en la barra lateral porque
+    # solo hay un módulo activo a la vez y la mirada queda en el centro.
+    col_baner, col_ayuda = st.columns([6, 1], vertical_alignment="center")
+
+    with col_baner:
+        st.markdown(
+            f'<div class="app-hero">'
+            f'<div><div class="hero-title">🛡️ {es_o_en("Analizador de Vulnerabilidades Web", "Web Vulnerability Analyzer")}</div>'
+            f'<div class="hero-sub">Pentesting ético · CVSS · PGI · OWASP</div></div>'
+            f'<div class="hero-right">'
+            f'<span class="pill pill-mode">🧭 {modo_label}</span>'
+            f'<span class="pill pill-{clase}">● {estado}</span>'
+            f'<span class="pill pill-target" title="{objetivo}">🎯 {objetivo}</span>'
+            f'</div></div>',
+            unsafe_allow_html=True,
+        )
+
+    if valido:
+        with col_ayuda:
+            _ayuda_modulo_activo(modo, modo_label)
+
+
+def _ayuda_modulo_activo(modo: str, modo_label: str):
+    """Popover con la explicación del módulo activo, junto a su banner."""
+    from models.i18n import es_o_en
+    from views.help_view import ayuda_modulo
+
+    with st.popover(
+        f"❔ {modo_label}",
+        key=f"ayuda_modulo_{modo}",
+        width="stretch",
+        help=es_o_en("Qué responde este módulo y qué te entrega",
+                     "What this module answers and what you get"),
+    ):
+        ayuda_modulo(modo)
 
 
 _AVISO_ICONOS = {"info": "ℹ️", "success": "✅", "warning": "⚠️", "error": "⛔"}
@@ -773,18 +935,37 @@ def ui_authorization_check(autorizado: bool) -> bool:
         )
         if st.button(t("✅ Confirmar autorización"), type="primary", use_container_width=True, key="auth_btn"):
             st.session_state.autorizado = True
-            st.rerun()
+            # Igual que en ui_navigation_buttons: recargar aquí cortaría la
+            # pasada antes del input de URL. Ver run().
+            st.session_state["_recargar"] = True
     return st.session_state.get("autorizado", False)
 
 
-def ui_url_input_sidebar(current_url: str) -> str:
+def ui_url_input_sidebar() -> str:
+    """Input de la URL objetivo.
+
+    Usa SOLO `key="sidebar_url"`, nunca `value=` a la vez: si se pasan los dos
+    Streamlit no puede decidir cuál manda, y el valor se pierde (aparecía
+    relleno en pantalla pero el servidor veía ""). Con `key` solo, el
+    session_state es la única fuente de verdad.
+    """
+    from models.i18n import es_o_en
     st.markdown('<div class="side-label">🎯 %s</div>' % t("Objetivo"), unsafe_allow_html=True)
     return st.text_input(
         t("URL objetivo"),
-        value=current_url,
         placeholder=t("ejemplo.com:8080 o https://dominio/ruta"),
         label_visibility="collapsed",
         key="sidebar_url",
+        help=es_o_en(
+            "Escribe el dominio, con puerto y ruta si hace falta. No hace falta que "
+            "incluya parámetros: la herramienta descubre los de la página y los de "
+            "sus formularios. Ejemplos: ejemplo.com · ejemplo.com:8080/login · "
+            "https://ejemplo.com/buscar?id=1",
+            "Enter the domain, with port and path if needed. It does not need to "
+            "include parameters: the tool discovers the ones in the page and in its "
+            "forms. Examples: example.com · example.com:8080/login · "
+            "https://example.com/search?id=1",
+        ),
     )
 
 
@@ -874,8 +1055,33 @@ def ui_navigation_buttons(current_mode: str, autorizado: bool) -> str:
             if st.button(**kwargs):
                 if autorizado:
                     st.session_state.selected_mode = mode_key
-                    st.rerun()
+                    # No se hace st.rerun() aquí: cortaría esta pasada ANTES de
+                    # que se declare el input de URL y el valor se perdía
+                    # (Ejecutar análisis quedaba bloqueado). Se marca la bandera
+                    # y se recarga al final de run(), cuando todo ya se dibujó.
+                    st.session_state["_recargar"] = True
     return st.session_state.get("selected_mode", current_mode)
+
+
+def ui_ayuda_rapida():
+    """Guía corta en la barra lateral: los pasos, sin salir de la vista."""
+    from views.help_view import ayuda_rapida
+    with st.popover(
+        f"❓ {t('Ayuda y guía de uso')}",
+        key="nav_ayuda",
+        width="stretch",
+        help=t("Resumen de los pasos para empezar."),
+    ):
+        ayuda_rapida()
+
+
+def ui_guia():
+    """Guía completa, en el área principal: mapa, paso a paso y referencia."""
+    from models.i18n import es_o_en
+    from views.help_view import guia
+    sufijo = es_o_en(" · ¿qué módulo necesito?", " · which module do I need?")
+    with st.expander(f"🧭 {t('Guía de uso')}{sufijo}", expanded=False):
+        guia()
 
 
 def ui_execute_button(autorizado: bool, url_input: str):
@@ -907,15 +1113,38 @@ def parse_headers(texto: str) -> dict:
     return headers
 
 
+def _selector_nivel(clave: str) -> str:
+    """Interruptor Básico / Avanzado dentro de un panel de opciones.
+
+    No cambia ningún valor: solo decide qué controles se dibujan. Los que no se
+    dibujan conservan su valor en `session_state`, así que el análisis es
+    idéntico en ambos niveles.
+    """
+    from models.i18n import es_o_en
+    etiquetas = {
+        "basico": es_o_en("🟢 Básicas (recomendado)", "🟢 Basic (recommended)"),
+        "avanzado": es_o_en("🔧 Avanzadas", "🔧 Advanced"),
+    }
+    return st.radio(
+        es_o_en("Nivel de detalle", "Detail level"),
+        options=["basico", "avanzado"],
+        format_func=lambda k: etiquetas[k],
+        horizontal=True, index=0,
+        key=f"nivel_{clave}",
+        label_visibility="collapsed",
+    )
+
+
 def ui_sqli_options():
-    """Opciones del escáner SQLi: cabeceras de sesión, cortesía y presupuesto."""
+    """Opciones del escáner SQLi.
+
+    En nivel Básico solo se muestran las tres que un usuario novel suele
+    necesitar (velocidad, cortesía y precisión). El resto queda en Avanzado.
+    """
     with st.expander(t("🔧 Opciones de inyección SQL"), expanded=False):
-        st.text_area(
-            t("Cabeceras extra (una por línea: `Nombre: valor`)"),
-            key="sqli_headers", height=90,
-            placeholder="Cookie: sesion=abc123\nAuthorization: Bearer ...",
-            help=t("Necesario para objetivos que requieren sesión o autenticación."),
-        )
+        nivel = _selector_nivel("sqli")
+
+        # ------------------------------------------------------------- básicas
         st.slider(
             t("Pausa entre peticiones (s)"), min_value=0.0, max_value=1.0,
             step=0.1, key="sqli_pausa",
@@ -925,6 +1154,32 @@ def ui_sqli_options():
             t("Máximo de puntos a analizar"), min_value=1, max_value=50,
             step=1, key="sqli_max_objetivos",
             help=t("Menos puntos = análisis más rápido."),
+        )
+        st.checkbox(
+            t("Confirmación estricta (menos falsos positivos)"),
+            key="sqli_confirmar",
+            help=t("Repite cada hallazgo para descartar falsos positivos. "
+                   "Desactívalo si el objetivo es inestable y crees que se están "
+                   "perdiendo hallazgos."),
+        )
+
+        if nivel != "avanzado":
+            return (
+                parse_headers(st.session_state.get("sqli_headers", "")),
+                st.session_state.get("sqli_pausa", 0.0),
+                int(st.session_state.get("sqli_max_peticiones", 1500)),
+            )
+
+        # ----------------------------------------------------------- avanzadas
+        st.markdown(
+            f'<div class="side-label">{t("Alcance del escaneo")}</div>',
+            unsafe_allow_html=True,
+        )
+        st.text_area(
+            t("Cabeceras extra (una por línea: `Nombre: valor`)"),
+            key="sqli_headers", height=90,
+            placeholder="Cookie: sesion=abc123\nAuthorization: Bearer ...",
+            help=t("Necesario para objetivos que requieren sesión o autenticación."),
         )
         st.number_input(
             t("Tiempo máximo (s)"), min_value=0, max_value=7200,
@@ -968,11 +1223,6 @@ def ui_sqli_options():
                    "Heurístico y MODIFICA datos del objetivo; úsalo solo con autorización."),
         )
         st.checkbox(
-            t("Confirmación estricta (menos falsos positivos)"),
-            key="sqli_confirmar",
-            help=t("Desactívalo si el objetivo es inestable y crees que se están perdiendo hallazgos."),
-        )
-        st.checkbox(
             t("Detener ante WAF / rate-limit"),
             key="sqli_abortar_waf",
             help=t("Si se desactiva, sigue probando aunque el objetivo devuelva bloqueos."),
@@ -985,17 +1235,21 @@ def ui_sqli_options():
 
 
 def ui_audit_options():
+    """Opciones de la auditoría profunda: cuánto sitio se recorre."""
     with st.expander(t("⚙️ Opciones de auditoría profunda"), expanded=False):
+        nivel = _selector_nivel("audit")
+
         st.slider(
             t("Profundidad de rastreo"), min_value=0, max_value=3,
             key="crawl_profundidad",
             help=t("0 = solo la página indicada. 2 = sigue enlaces hasta 2 niveles."),
         )
-        st.slider(
-            t("Máximo de páginas"), min_value=1, max_value=50,
-            key="crawl_max_paginas",
-            help=t("Límite de páginas a analizar en profundidad."),
-        )
+        if nivel == "avanzado":
+            st.slider(
+                t("Máximo de páginas"), min_value=1, max_value=50,
+                key="crawl_max_paginas",
+                help=t("Límite de páginas a analizar en profundidad."),
+            )
     return (
         st.session_state.get("crawl_profundidad", 2),
         st.session_state.get("crawl_max_paginas", 15),

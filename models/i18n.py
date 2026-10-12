@@ -666,6 +666,18 @@ TRADUCCIONES = {
     "🔶 Degradation detected. Implement rate limiting, load balancing and DB optimization.",
     "🚨 Rendimiento crítico. Escalar infraestructura inmediatamente, revisar queries lentas y caché.":
     "🚨 Critical performance. Scale infrastructure immediately, review slow queries and cache.",
+
+    # ----------------------------------------------------------------- ayuda
+    # La guía larga (views/help_view.py) usa parejas ES/EN con `es_o_en()`: sus
+    # cadenas comparten palabras y el diccionario por literal se rompería al
+    # tocar una coma. Aquí solo van las etiquetas de la interfaz.
+    "Ayuda y guía de uso": "Help and user guide",
+    "Guía de uso": "User guide",
+    "Resumen de los pasos para empezar.": "A summary of the steps to get started.",
+    "Alcance del escaneo": "Scan scope",
+    "Nivel de detalle": "Detail level",
+    "🟢 Básicas (recomendado)": "🟢 Basic (recommended)",
+    "🔧 Avanzadas": "🔧 Advanced",
 }
 
 

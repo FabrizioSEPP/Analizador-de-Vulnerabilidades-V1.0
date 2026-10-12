@@ -8,7 +8,9 @@ from views.components import (
     ui_sidebar, ui_authorization_check, ui_url_input_sidebar,
     ui_navigation_buttons, ui_execute_button, ui_internal_network_toggle,
     ui_audit_options, ui_sqli_options, ui_theme_selector, ui_language_selector,
-    hero_header, aviso,
+    ui_ayuda_rapida, ui_guia,
+    hero_header,
+    aviso,
     css_tema, CSS_STYLES,
 )
 from models.i18n import t, es_o_en
@@ -26,6 +28,9 @@ def run():
     st.session_state.setdefault("permitir_privadas", False)
     st.session_state.setdefault("crawl_profundidad", 2)
     st.session_state.setdefault("crawl_max_paginas", 15)
+    # Bandera de recarga diferida: se enciende al pulsar un módulo o la
+    # autorización, y se consume al FINAL de run() (ver más abajo).
+    st.session_state["_recargar"] = False
     # Opciones del escáner SQLi INTEGRADAS por defecto: basta pulsar
     # "Ejecutar análisis" en modo Inyección SQL; no hace falta abrir el panel.
     _OPCIONES_SQLI = {
@@ -61,6 +66,7 @@ def run():
         selected_mode = ui_navigation_buttons(
             st.session_state.get("selected_mode", "sqli"), autorizado
         )
+        ui_ayuda_rapida()
         autorizado = ui_authorization_check(False)
         ui_internal_network_toggle()
         ui_sqli_options()
@@ -91,7 +97,7 @@ def run():
     with st.container(key="main-toolbar"):
         toolbar_columns = st.columns([6, 2, 2], vertical_alignment="center")
         with toolbar_columns[0]:
-            url_input = ui_url_input_sidebar(st.session_state.get("sidebar_url", ""))
+            url_input = ui_url_input_sidebar()
         with toolbar_columns[1]:
             ejecutar = ui_execute_button(autorizado, url_input)
         with toolbar_columns[2]:
@@ -103,12 +109,23 @@ def run():
 
     hero_header(url_input, selected_mode, autorizado)
 
+    ui_guia()
+
     if ejecutar and autorizado and url_input.strip():
         _dispatch(selected_mode, url_input.strip())
     elif not autorizado:
         aviso("info", t("🔒 Confirma tu autorización en la barra lateral para comenzar el análisis."))
     elif not url_input.strip():
         aviso("warning", t("Ingresa una URL en la barra lateral para comenzar."))
+
+    # Recarga diferida — ver ui_navigation_buttons() y ui_authorization_check().
+    # Hacer st.rerun() ahí cortaba la pasada ANTES de que se declarara el input
+    # de URL, de modo que session_state["sidebar_url"] volvía a "" y el botón
+    # Ejecutar análisis aparecía bloqueado aunque la URL seguía visible en
+    # pantalla. Aquí ya se dibujó todo, así que el valor está commitado.
+    if st.session_state.get("_recargar", False):
+        st.session_state["_recargar"] = False
+        st.rerun()
 
 
 def _dispatch(mode: str, url: str):

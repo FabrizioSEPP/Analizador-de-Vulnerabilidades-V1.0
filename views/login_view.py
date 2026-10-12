@@ -2,7 +2,7 @@ import streamlit as st
 from models import db
 from models.auth_model import register, login
 from views.components import aviso, ui_theme_selector, ui_language_selector
-from models.i18n import t
+from models.i18n import t, es_o_en
 
 MIN_PASSWORD = 8
 
@@ -65,10 +65,18 @@ def mostrar():
                     l_user = st.text_input(
                         t("👤 Usuario"), key="login_user",
                         placeholder=t("tu_usuario"), label_visibility="collapsed",
+                        help=es_o_en(
+                            "El usuario con el que creaste tu cuenta. Mínimo 3 caracteres.",
+                            "The username you registered with. Minimum 3 characters.",
+                        ),
                     )
                     l_pass = st.text_input(
                         t("🔑 Contraseña"), type="password", key="login_pass",
                         placeholder=t("Contraseña"), label_visibility="collapsed",
+                        help=es_o_en(
+                            "Tu contraseña. Debe tener mínimo 8 caracteres.",
+                            "Your password. At least 8 characters when you created it.",
+                        ),
                     )
                     submitted = st.form_submit_button(
                         t("Entrar"), type="primary", use_container_width=True,
@@ -87,14 +95,30 @@ def mostrar():
                     r_user = st.text_input(
                         t("👤 Nombre de usuario"), key="reg_user",
                         placeholder=t("mi_usuario"), label_visibility="collapsed",
+                        help=es_o_en(
+                            "Elige un nombre de al menos 3 caracteres. Quedará asociado "
+                            "al historial de tus análisis.",
+                            "Choose a name of at least 3 characters. It will be linked "
+                            "to the history of your analyses.",
+                        ),
                     )
                     r_pass = st.text_input(
                         t("🔑 Crear contraseña"), type="password", key="reg_pass",
                         placeholder=t("mínimo {} caracteres").format(MIN_PASSWORD), label_visibility="collapsed",
+                        help=es_o_en(
+                            "Mínimo 8 caracteres. Se guarda cifrada con PBKDF2 y sal "
+                            "aleatoria: nunca se almacena en texto plano.",
+                            "At least 8 characters. It is stored hashed with PBKDF2 and "
+                            "a random salt: it is never kept in plain text.",
+                        ),
                     )
                     r_pass2 = st.text_input(
                         t("🔑 Repetir contraseña"), type="password", key="reg_pass2",
                         placeholder=t("repetir contraseña"), label_visibility="collapsed",
+                        help=es_o_en(
+                            "Repite la contraseña anterior. Debe coincidir exactamente.",
+                            "Repeat the password above. It must match exactly.",
+                        ),
                     )
                     reg_submitted = st.form_submit_button(
                         t("Crear cuenta"), type="primary", use_container_width=True,
