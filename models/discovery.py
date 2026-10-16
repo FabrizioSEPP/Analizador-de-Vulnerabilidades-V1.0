@@ -17,6 +17,7 @@ from urllib.parse import urljoin, urlparse, urldefrag
 from bs4 import BeautifulSoup
 
 from models.http_utils import extraer_parametros, hacer_peticion
+from models.i18n import t
 
 TIPOS_IGNORADOS = {"submit", "button", "image", "reset", "file"}
 MAX_PARAMS_FORMULARIO = 10
@@ -138,14 +139,14 @@ def descubrir_objetivos(url: str, probar_cabeceras: bool = False,
     response, _, error = hacer_peticion(url, timeout=8)
     if error or response is None:
         if not objetivos:
-            info["mensaje"] = f"No se pudo leer la página: {error}"
+            info["mensaje"] = t("No se pudo leer la página: {}").format(error)
         return objetivos, info
     info["pagina_leida"] = True
 
     content_type = (response.headers.get("Content-Type") or "").lower()
     if "html" not in content_type and "<html" not in response.text[:3000].lower():
         if not objetivos:
-            info["mensaje"] = "El contenido no es HTML; solo se analizan los parámetros de la URL."
+            info["mensaje"] = t("El contenido no es HTML; solo se analizan los parámetros de la URL.")
         return objetivos, info
 
     sopa = BeautifulSoup(response.text, "html.parser")

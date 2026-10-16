@@ -5,6 +5,8 @@ import time
 from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 import requests
 
+from models.i18n import t
+
 _local = threading.local()
 
 
@@ -49,21 +51,21 @@ def normalizar_url(url: str) -> str:
 
 def validar_url(url: str, permitir_privadas: bool = False) -> tuple[bool, str]:
     if not url or not url.strip():
-        return False, "La URL no puede estar vacía."
+        return False, t("La URL no puede estar vacía.")
 
     url = url.strip()
     parsed = urlparse(url)
 
     if parsed.scheme not in ("http", "https"):
-        return False, "La URL debe usar http o https."
+        return False, t("La URL debe usar http o https.")
 
     if not parsed.netloc:
-        return False, "La URL no contiene un dominio válido."
+        return False, t("La URL no contiene un dominio válido.")
 
     if not permitir_privadas and es_objetivo_privado(parsed.hostname or ""):
         return False, (
-            "La URL apunta a una dirección interna o privada (posible SSRF). "
-            "Activa 'Permitir red interna' en la barra lateral si es un objetivo de laboratorio."
+            t("La URL apunta a una dirección interna o privada (posible SSRF). "
+              "Activa 'Permitir red interna' en la barra lateral si es un objetivo de laboratorio.")
         )
 
     return True, ""
@@ -116,11 +118,11 @@ def hacer_peticion(
         elapsed = time.perf_counter() - start
         return response, elapsed, ""
     except requests.exceptions.Timeout:
-        return None, timeout, "Timeout: la solicitud tardó demasiado."
+        return None, timeout, t("Timeout: la solicitud tardó demasiado.")
     except requests.exceptions.ConnectionError:
-        return None, 0, "Error de conexión: no se pudo conectar al servidor."
+        return None, 0, t("Error de conexión: no se pudo conectar al servidor.")
     except requests.exceptions.RequestException as e:
-        return None, 0, f"Error de solicitud: {e}"
+        return None, 0, t("Error de solicitud: {}").format(e)
 
 
 # Solo firmas ESPECÍFICAS de WAF. Frases genéricas como "access denied" o

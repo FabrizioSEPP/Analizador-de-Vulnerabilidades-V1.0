@@ -2,6 +2,7 @@ import html as _html
 import re
 
 import streamlit as st
+from models.i18n import t, es_o_en, columna, valor
 
 _PALETA_OSCURA = {
     "bg": "#060d1f",
@@ -686,6 +687,7 @@ def ui_navigation_buttons(current_mode: str, autorizado: bool) -> str:
     st.markdown(
         """
         <style>
+        .st-key-nav_sqli .stButton > button,
         .st-key-nav_load .stButton > button,
         .st-key-nav_audit .stButton > button,
         .st-key-nav_port .stButton > button {
@@ -708,12 +710,17 @@ def ui_navigation_buttons(current_mode: str, autorizado: bool) -> str:
             border-color: #06b6d4;
             background: rgba(6, 182, 212, 0.10);
         }
+        .st-key-nav_sqli .stButton > button {
+            border-color: #f59e0b;
+            background: rgba(245, 158, 11, 0.10);
+        }
         </style>
         """,
         unsafe_allow_html=True,
     )
     cols = st.columns(2)
     labels = [
+        ("🔍 Inyección SQL", "sqli"),
         ("⚡ Prueba de Carga", "load"),
         ("🛡️ Auditoría Unificada", "audit"),
         ("🔌 Escaneo de Puertos", "port"),
@@ -871,3 +878,74 @@ def ui_audit_options():
         st.session_state.get("crawl_profundidad", 2),
         st.session_state.get("crawl_max_paginas", 15),
     )
+
+
+# --- Agregado desde main: ayuda, guia e idioma ---
+def _ayuda_modulo_activo(modo: str, modo_label: str):
+    """Popover con la explicación del módulo activo, junto a su banner."""
+    from models.i18n import es_o_en
+    from views.help_view import ayuda_modulo
+
+    with st.popover(
+        f"❔ {modo_label}",
+        key=f"ayuda_modulo_{modo}",
+        width="stretch",
+        help=es_o_en("Qué responde este módulo y qué te entrega",
+                     "What this module answers and what you get"),
+    ):
+        ayuda_modulo(modo)
+
+def ui_language_selector():
+    st.markdown('<div class="side-label">🌐 Idioma / Language</div>', unsafe_allow_html=True)
+    st.radio(
+        "Idioma",
+        options=["es", "en"],
+        format_func=lambda k: "ES Español" if k == "es" else "EN English",
+        key="idioma",
+        horizontal=True,
+        label_visibility="collapsed",
+    )
+    return st.session_state.get("idioma", "es")
+
+def ui_ayuda_rapida():
+    """Guía corta en la barra lateral: los pasos, sin salir de la vista."""
+    from views.help_view import ayuda_rapida
+    with st.popover(
+        f"❓ {t('Ayuda y guía de uso')}",
+        key="nav_ayuda",
+        width="stretch",
+        help=t("Resumen de los pasos para empezar."),
+    ):
+        ayuda_rapida()
+
+def ui_guia():
+    """Guía completa, en el área principal: mapa, paso a paso y referencia."""
+    from models.i18n import es_o_en
+    from views.help_view import guia
+    sufijo = es_o_en(" · ¿qué módulo necesito?", " · which module do I need?")
+    with st.expander(f"🧭 {t('Guía de uso')}{sufijo}", expanded=False):
+        guia()
+
+def _selector_nivel(clave: str) -> str:
+    """Interruptor Básico / Avanzado dentro de un panel de opciones.
+
+    No cambia ningún valor: solo decide qué controles se dibujan. Los que no se
+    dibujan conservan su valor en `session_state`, así que el análisis es
+    idéntico en ambos niveles.
+    """
+    from models.i18n import es_o_en
+    etiquetas = {
+        "basico": es_o_en("🟢 Básicas (recomendado)", "🟢 Basic (recommended)"),
+        "avanzado": es_o_en("🔧 Avanzadas", "🔧 Advanced"),
+    }
+    return st.radio(
+        es_o_en("Nivel de detalle", "Detail level"),
+        options=["basico", "avanzado"],
+        format_func=lambda k: etiquetas[k],
+        horizontal=True, index=0,
+        key=f"nivel_{clave}",
+        label_visibility="collapsed",
+    )
+
+CSS_AYUDA_EXTRA = ':root{--primary-2:#22d3ee;--surface:#0b1a33;--surface-2:#0f2140;--border:#12305a;--border-soft:#12305a;--muted:#9bb0c8;--muted-2:#7f93b0;--text:#e6edf7;--crit:#ef4444;--radius:14px;--radius-sm:8px;--background-color:#050b1a;}\n/* Guía de uso: mapa de módulos, instructivo y referencia de opciones */\n    .help-intro {\n        font-size: .82rem; line-height: 1.55; color: var(--muted);\n        margin: 4px 0 12px;\n    }\n    .help-grid {\n        display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));\n        /* grid-auto-rows: 1fr iguala la altura de todas las filas, para que las\n           cuatro tarjetas queden simétricas aunque el texto sea de largo distinto. */\n        grid-auto-rows: 1fr;\n        gap: 14px; margin: 6px 0 4px;\n    }\n    @media (max-width: 1250px) { .help-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }\n    @media (max-width: 640px)  { .help-grid { grid-template-columns: 1fr; } }\n    .help-card {\n        display: flex; flex-direction: column; gap: 9px;\n        min-height: 300px; padding: 17px 16px;\n        border: 1px solid var(--border); border-radius: var(--radius);\n        background: var(--surface);\n    }\n    .help-card-icon { font-size: 1.5rem; line-height: 1; }\n    .help-card-title { font-size: .95rem; font-weight: 700; color: var(--text); }\n    .help-card-pregunta {\n        font-size: .85rem; font-weight: 600; line-height: 1.45; color: var(--primary-2);\n    }\n    .help-card-desc { font-size: .78rem; line-height: 1.55; color: var(--muted); flex: 1; }\n    .help-card-entrega {\n        font-size: .77rem; line-height: 1.5; color: var(--muted);\n        padding: 9px 11px; border-radius: var(--radius-sm);\n        background: var(--surface-2); border: 1px solid var(--border-soft);\n    }\n    .help-card-entrega b { color: var(--text); font-weight: 700; }\n    .help-card-foot {\n        font-size: .73rem; line-height: 1.45; color: var(--muted-2);\n        padding-top: 10px; border-top: 1px solid var(--border-soft);\n    }\n\n    /* Popover de ayuda de un módulo */\n    .help-pop-title { font-size: .9rem; font-weight: 700; color: var(--text); margin-bottom: 6px; }\n    .help-pop-body { font-size: .78rem; line-height: 1.55; color: var(--muted); margin-top: 8px; }\n    .help-pop-entrega {\n        font-size: .77rem; line-height: 1.5; color: var(--muted); margin-top: 9px;\n        padding: 8px 10px; border-radius: var(--radius-sm);\n        background: var(--surface-2); border: 1px solid var(--border-soft);\n    }\n    .help-pop-entrega b { color: var(--text); font-weight: 700; }\n    .help-pop-foot {\n        font-size: .73rem; line-height: 1.45; color: var(--muted-2);\n        margin-top: 9px; padding-top: 8px; border-top: 1px solid var(--border-soft);\n    }\n\n    /* Instructivo paso a paso */\n    .step-list { display: flex; flex-direction: column; gap: 8px; margin: 4px 0; }\n    .step {\n        display: flex; gap: 12px; align-items: flex-start;\n        padding: 12px 14px; border: 1px solid var(--border-soft);\n        border-radius: var(--radius-sm); background: var(--surface);\n    }\n    .step-num {\n        flex: 0 0 25px; width: 25px; height: 25px; border-radius: 50%;\n        display: grid; place-items: center;\n        font-size: .72rem; font-weight: 800; color: var(--background-color);\n        background: var(--primary-2);\n    }\n    .step-title { font-size: .86rem; font-weight: 700; color: var(--text); }\n    .step-desc { font-size: .79rem; line-height: 1.55; color: var(--muted); }\n\n    /* Referencia de opciones, agrupada por intención */\n    .opt-group { margin: 16px 0 4px; }\n    .opt-group:first-child { margin-top: 4px; }\n    .opt-group-title {\n        font-size: .82rem; font-weight: 700; color: var(--text);\n        padding-bottom: 7px; margin-bottom: 4px;\n        border-bottom: 1px solid var(--border);\n    }\n    .opt-row {\n        display: flex; gap: 16px; align-items: baseline;\n        padding: 9px 2px; border-bottom: 1px dashed var(--border-soft);\n    }\n    .opt-row:last-child { border-bottom: none; }\n    .opt-name {\n        flex: 0 0 210px; font-size: .78rem; font-weight: 600; color: var(--primary-2);\n    }\n    .opt-what { flex: 1; font-size: .79rem; line-height: 1.55; color: var(--muted); }\n    @media (max-width: 900px) {\n        .opt-row { flex-direction: column; gap: 3px; }\n        .opt-name { flex: 1; }\n    }\n    .opt-group-warn {\n        padding: 12px 14px; border-radius: var(--radius-sm);\n        border: 1px solid rgba(220, 38, 38, .38); background: rgba(220, 38, 38, .08);\n    }\n    .opt-group-warn .opt-group-title { color: var(--crit); border-bottom-color: rgba(220, 38, 38, .28); }\n    .opt-group-warn .opt-what { color: var(--text); }\n\n    /* Nota neutral: módulos sin panel de opciones */\n    .opt-nota {\n        padding: 12px 14px; border-radius: var(--radius-sm);\n        border: 1px dashed var(--border);\n        background: var(--surface-2);\n    }\n    .opt-nota .opt-group-title {\n        color: var(--muted); border-bottom: none;\n        padding-bottom: 0; margin-bottom: 2px;\n    }\n    .opt-nota .opt-what { color: var(--muted); }\n\n    /* Botón de guía rápida de la barra lateral */\n    .st-key-nav_ayuda .stButton > button {\n        font-weight: 600; font-size: .78rem;\n        border-radius: 999px; border-style: solid; border-width: 1px;\n        border-color: var(--border); background: var(--surface-2);\n    }\n    .st-key-nav_ayuda .stButton > button:hover {\n        border-color: var(--primary-2) !important;\n        box-shadow: 0 0 14px rgba(34, 211, 238, .22) !important;\n    }\n\n    /* Botón de ayuda del módulo activo, junto al banner */\n    .st-key-ayuda_modulo_sqli .stButton > button,\n    .st-key-ayuda_modulo_load .stButton > button,\n    .st-key-ayuda_modulo_audit .stButton > button,\n    .st-key-ayuda_modulo_port .stButton > button {\n        font-weight: 600; font-size: .78rem; color: var(--muted);\n        border-radius: 999px; border-style: solid; border-width: 1px;\n        border-color: var(--border); background: transparent;\n        margin-top: 0;\n    }\n    .st-key-ayuda_modulo_sqli .stButton > button:hover,\n    .st-key-ayuda_modulo_load .stButton > button:hover,\n    .st-key-ayuda_modulo_audit .stButton > button:hover,\n    .st-key-ayuda_modulo_port .stButton > button:hover {\n        color: var(--primary-2); border-color: var(--primary-2) !important;\n        box-shadow: 0 0 14px rgba(34, 211, 238, .22) !important;\n    }'
+CSS_STYLES = CSS_STYLES + "<style>" + CSS_AYUDA_EXTRA + "</style>"

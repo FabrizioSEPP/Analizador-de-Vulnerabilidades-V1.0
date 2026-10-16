@@ -1,5 +1,7 @@
 import math
 
+from models.i18n import t
+
 SEVERITY_COLORS = {"Crítica": "#d32f2f", "Alta": "#f57c00", "Media": "#fbc02d", "Baja": "#388e3c", "Info": "#1976d2"}
 
 # Vectores CVSS v3.1 base por técnica de inyección SQL. La confianza del
@@ -74,27 +76,31 @@ def recomendacion(hallazgo: dict, cvss: float) -> str:
     severidad = nivel_riesgo(cvss)
     if cvss >= 8.0:
         return (
-            f"🚨 [CRÍTICO] El parámetro '{parametro}' presenta inyección SQL {severidad.lower()} "
-            f"({cvss}/10). Aplicar parche inmediato: usar consultas parametrizadas "
-            f"(prepared statements), validar entradas con whitelist, y desplegar WAF. "
-            f"No aplique correcciones temporales sin análisis profundo."
+            t("🚨 [CRÍTICO] El parámetro '{}' presenta inyección SQL {} "
+              "({}/10). Aplicar parche inmediato: usar consultas parametrizadas "
+              "(prepared statements), validar entradas con whitelist, y desplegar WAF. "
+              "No aplique correcciones temporales sin análisis profundo.")
+            .format(parametro, severidad.lower(), cvss)
         )
     elif cvss >= 6.0:
         return (
-            f"⚠️ [ALTA] Inyección SQL {severidad.lower()} en '{parametro}' (CVSS {cvss}/10). "
-            f"Priorizar en el ciclo de parches actual: migra a queries parametrizadas, "
-            f"aplica escape de entradas y monitorea logs de acceso."
+            t("⚠️ [ALTA] Inyección SQL {} en '{}' (CVSS {}/10). "
+              "Priorizar en el ciclo de parches actual: migra a queries parametrizadas, "
+              "aplica escape de entradas y monitorea logs de acceso.")
+            .format(severidad.lower(), parametro, cvss)
         )
     elif cvss >= 3.0:
         return (
-            f"📋 [MEDIA] Indicio de inyección SQL en '{parametro}' (CVSS {cvss}/10). "
-            f"Validar con pruebas manuales y aplicar validación de entradas. "
-            f"Planificar corrección en la siguiente sprint."
+            t("📋 [MEDIA] Indicio de inyección SQL en '{}' (CVSS {}/10). "
+              "Validar con pruebas manuales y aplicar validación de entradas. "
+              "Planificar corrección en la siguiente sprint.")
+            .format(parametro, cvss)
         )
     else:
         return (
-            f"ℹ️ [BAJA] Hallazgo menor en '{parametro}' (CVSS {cvss}/10). "
-            f"Documentar y revisar en revisión de seguridad periódica."
+            t("ℹ️ [BAJA] Hallazgo menor en '{}' (CVSS {}/10). "
+              "Documentar y revisar en revisión de seguridad periódica.")
+            .format(parametro, cvss)
         )
 
 
@@ -174,9 +180,10 @@ def _generar_explicacion_basica(hallazgo: dict, cvss: float) -> str:
     param = hallazgo.get("parametro", "")
     nivel = nivel_riesgo(cvss)
     return (
-        f"El parámetro '{param}' presenta una posible inyección SQL ({tipo}) "
-        f"con nivel de riesgo {nivel} (CVSS {cvss}/10). "
-        f"Se recomienda aplicar consultas parametrizadas y validación de entradas."
+        t("El parámetro '{}' presenta una posible inyección SQL ({}) "
+          "con nivel de riesgo {} (CVSS {}/10). "
+          "Se recomienda aplicar consultas parametrizadas y validación de entradas.")
+        .format(param, tipo, nivel, cvss)
     )
 
 
@@ -223,20 +230,20 @@ def calcular_metricas_load(resultado: dict) -> dict:
 
     recomendaciones = []
     if pgi >= 90:
-        recomendaciones.append("✅ Rendimiento óptimo. Mantener monitoreo continuo y planificar escalado proactivo.")
+        recomendaciones.append(t("✅ Rendimiento óptimo. Mantener monitoreo continuo y planificar escalado proactivo."))
     elif pgi >= 75:
-        recomendaciones.append("⚠️ Rendimiento aceptable. Considerar optimización de queries y añadir caching.")
+        recomendaciones.append(t("⚠️ Rendimiento aceptable. Considerar optimización de queries y añadir caching."))
     elif pgi >= 50:
-        recomendaciones.append("🔶 Degradación detectada. Implementar rate limiting, balanceo de carga y optimización de DB.")
+        recomendaciones.append(t("🔶 Degradación detectada. Implementar rate limiting, balanceo de carga y optimización de DB."))
     else:
-        recomendaciones.append("🚨 Rendimiento crítico. Escalar infraestructura inmediatamente, revisar queries lentas y caché.")
+        recomendaciones.append(t("🚨 Rendimiento crítico. Escalar infraestructura inmediatamente, revisar queries lentas y caché."))
 
     if tipo_error_total.get("timeout", 0) > 0:
-        recomendaciones.append(f"⏱️ {tipo_error_total['timeout']} timeouts detectados. Revisar timeouts del servidor y slow queries.")
+        recomendaciones.append(t("⏱️ {} timeouts detectados. Revisar timeouts del servidor y slow queries.").format(tipo_error_total["timeout"]))
     if tipo_error_total.get("5xx", 0) > 0:
-        recomendaciones.append(f"🔴 {tipo_error_total['5xx']} errores 5xx. Investigar errores del servidor.")
+        recomendaciones.append(t("🔴 {} errores 5xx. Investigar errores del servidor.").format(tipo_error_total["5xx"]))
     if tipo_error_total.get("connection", 0) > 0:
-        recomendaciones.append(f"🔌 {tipo_error_total['connection']} errores de conexión. Verificar límites del servidor.")
+        recomendaciones.append(t("🔌 {} errores de conexión. Verificar límites del servidor.").format(tipo_error_total["connection"]))
 
     return {
         "capacidad": capacidad, "salud_global": salud, "latencia_base": latencia_base,

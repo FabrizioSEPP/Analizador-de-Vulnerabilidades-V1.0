@@ -6,6 +6,8 @@ from urllib.parse import urlparse
 import joblib
 import pandas as pd
 
+from models.i18n import t
+
 ACORTADORES = ["bit.ly", "tinyurl.com", "goo.gl", "t.co", "ow.ly",
                "is.gd", "buff.ly", "adf.ly", "tiny.cc", "lnkd.in"]
 
@@ -111,7 +113,7 @@ def detectar_phishing(url: str) -> dict:
             modelo = entrenar_modelo()
         except Exception:
             return {"resultado": "ERROR", "score_riesgo": 0, "confianza": 0,
-                    "mensaje": "Modelo ML no disponible"}
+                    "mensaje": t("Modelo ML no disponible")}
 
     caracteristicas = _extraer_caracteristicas(url)
     # DataFrame con los mismos nombres de columna que se usaron al entrenar.

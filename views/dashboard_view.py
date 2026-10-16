@@ -1,6 +1,8 @@
 import plotly.graph_objects as go
 import pandas as pd
 import streamlit as st
+from views.components import ui_sqli_options
+from models.i18n import t, es_o_en
 
 from models import history
 from models.metrics import nivel_riesgo
@@ -81,7 +83,7 @@ def grafico_severidad_donub(por_severidad: dict) -> go.Figure:
         labels=labels, values=values, marker=dict(colors=colors), hole=0.55,
         textinfo="label+percent", textfont=dict(size=11),
     )])
-    fig.update_layout(title="Distribución de severidad", showlegend=False)
+    fig.update_layout(title=es_o_en("Distribución de severidad", "Severity distribution"), showlegend=False)
     return _tema(fig)
 
 
@@ -104,8 +106,9 @@ def grafico_confianza_por_parametro(hallazgos: list) -> go.Figure:
             x=subset["parámetro"], y=subset["confianza"],
             name=tipo, marker_color=color, marker_line_width=0,
         ))
-    fig.update_layout(title="Confianza por parámetro", barmode="group",
-                      yaxis_title="Confianza (%)", xaxis_title="Parámetro")
+    fig.update_layout(title=es_o_en("Confianza por parámetro", "Confidence by parameter"), barmode="group",
+                      yaxis_title=es_o_en("Confianza (%)", "Confidence (%)"),
+                      xaxis_title=es_o_en("Parámetro", "Parameter"))
     return _tema(fig)
 
 
@@ -117,10 +120,10 @@ def grafico_radar_cobertura(hallazgos: list) -> go.Figure:
     fig.add_trace(go.Scatterpolar(
         r=valores + [valores[0]], theta=tipos + [tipos[0]],
         fill="toself", fillcolor="rgba(99, 102, 241, 0.25)",
-        line=dict(color=c["primary"], width=2), name="Cobertura",
+        line=dict(color=c["primary"], width=2), name=es_o_en("Cobertura", "Coverage"),
     ))
     fig.update_layout(
-        title="Cobertura de vectores de ataque",
+        title=es_o_en("Cobertura de vectores de ataque", "Attack vector coverage"),
         polar=dict(
             bgcolor="rgba(0,0,0,0)",
             radialaxis=dict(visible=True, range=[0, 1.2], tickvals=[0, 1],
@@ -151,17 +154,24 @@ def grafico_risk_matrix(hallazgos_con_cvss: list) -> go.Figure:
             x=subset["x"], y=subset["y"], mode="markers+text",
             marker=dict(size=15, color=_sev_color(nivel, c), symbol="x",
                         line=dict(width=2, color=c["text"])),
-            text=subset["param"], textposition="top center", name=nivel,
+            text=subset["param"], textposition="top center", name=es_o_en(nivel, _nivel_en(nivel)),
             textfont=dict(size=10, color=c["muted"]),
         ))
     fig.add_shape(type="rect", x0=3, x1=10, y0=3, y1=10, line=dict(width=0),
                   fillcolor="rgba(239,68,68,0.06)")
     fig.add_shape(type="rect", x0=6, x1=10, y0=6, y1=10, line=dict(width=0),
                   fillcolor="rgba(249,115,22,0.06)")
-    fig.update_layout(title="Matriz de riesgo (Likelihood vs Impact)",
-                      xaxis_title="Likelihood (CVSS Base)", yaxis_title="Impact",
+    fig.update_layout(title=t("Matriz de riesgo (Likelihood vs Impact)"),
+                      xaxis_title=t("Likelihood (CVSS Base)"), yaxis_title=t("Impact"),
                       xaxis=dict(range=[0, 11], dtick=2), yaxis=dict(range=[0, 11], dtick=2))
     return _tema(fig)
+
+
+def _nivel_en(nivel: str) -> str:
+    return {
+        "Crítica": "Critical", "Alta": "High", "Media": "Medium",
+        "Baja": "Low", "Info": "Info",
+    }.get(nivel, nivel)
 
 
 def grafico_gauge_riesgo(cvss_promedio: float, riesgo_global: str) -> go.Figure:
@@ -170,7 +180,7 @@ def grafico_gauge_riesgo(cvss_promedio: float, riesgo_global: str) -> go.Figure:
     fig = go.Figure(go.Indicator(
         mode="gauge+number", value=cvss_promedio,
         number=dict(font=dict(size=34, color=c["text"])),
-        title={"text": "Riesgo global (CVSS)", "font": {"size": 14, "color": c["muted"]}},
+        title={"text": es_o_en("Riesgo global (CVSS)", "Overall risk (CVSS)"), "font": {"size": 14, "color": c["muted"]}},
         gauge={
             "axis": {"range": [0, 10], "dtick": 2, "tickcolor": c["muted"]},
             "bar": {"color": color, "thickness": 0.72},
@@ -197,8 +207,9 @@ def grafico_latencia_percentiles(niveles: list) -> go.Figure:
     fig.add_trace(go.Scatter(x=df["concurrencia"], y=df["latencia_p95"], mode="lines+markers", name="p95", line=dict(color=c["high"])))
     fig.add_trace(go.Scatter(x=df["concurrencia"], y=df["latencia_p99"], mode="lines+markers", name="p99", line=dict(color=c["crit"], width=3)))
     fig.update_layout(
-        title="Latencia por percentil vs concurrencia",
-        xaxis_title="Concurrencia (peticiones simultáneas)", yaxis_title="Latencia (s)",
+        title=es_o_en("Latencia por percentil vs concurrencia", "Latency by percentile vs concurrency"),
+        xaxis_title=es_o_en("Concurrencia (peticiones simultáneas)", "Concurrency (simultaneous requests)"),
+        yaxis_title=es_o_en("Latencia (s)", "Latency (s)"),
         legend=dict(orientation="h", yanchor="top", y=-0.25, xanchor="center", x=0.5),
     )
     return _tema_carga(fig, leyenda_inferior=True)
@@ -210,8 +221,9 @@ def grafico_throughput(niveles: list) -> go.Figure:
     df["throughput"] = df["peticiones_totales"] / max(DURACION_MAXIMA_POR_NIVEL, 1)
     fig = go.Figure()
     fig.add_trace(go.Bar(x=df["concurrencia"], y=df["throughput"], marker_color=c["primary"], marker_line_width=0))
-    fig.update_layout(title="Throughput (peticiones/segundo) por nivel",
-                      xaxis_title="Concurrencia", yaxis_title="Peticiones / segundo")
+    fig.update_layout(title=es_o_en("Throughput (peticiones/segundo) por nivel",    "Throughput (requests/second) per level"),
+    xaxis_title=es_o_en("Concurrencia", "Concurrency"),
+    yaxis_title=es_o_en("Peticiones / segundo", "Requests / second"))
     return _tema_carga(fig)
 
 
@@ -224,7 +236,7 @@ def grafico_error_pie(tipo_error: dict) -> go.Figure:
         marker=dict(colors=[c["crit"], c["high"], c["med"], c["ok"], c["muted"]]), hole=0.55,
         textinfo="label+percent", textfont=dict(size=11),
     )])
-    fig.update_layout(title="Distribución de errores", showlegend=False)
+    fig.update_layout(title=es_o_en("Distribución de errores", "Error distribution"), showlegend=False)
     return _tema_carga(fig)
 
 
@@ -234,7 +246,7 @@ def grafico_gauge_pgi(pgi: float, salud: str) -> go.Figure:
     fig = go.Figure(go.Indicator(
         mode="gauge+number", value=pgi,
         number=dict(font=dict(size=34, color=c["text"])),
-        title={"text": "Grado de salud (PGI)", "font": {"size": 14, "color": c["muted"]}},
+        title={"text": es_o_en("Grado de salud (PGI)", "Health score (PGI)"), "font": {"size": 14, "color": c["muted"]}},
         gauge={
             "axis": {"range": [0, 100], "dtick": 20, "tickcolor": c["muted"]},
             "bar": {"color": color, "thickness": 0.72},
@@ -254,14 +266,14 @@ def grafico_barra_estado(niveles: list) -> go.Figure:
     c = colores_actuales()
     df = pd.DataFrame(niveles)
     fig = go.Figure()
-    fig.add_trace(go.Bar(x=df["concurrencia"], y=df["tasa_error"], name="Tasa de error %", marker_color=c["crit"], marker_line_width=0))
+    fig.add_trace(go.Bar(x=df["concurrencia"], y=df["tasa_error"], name=es_o_en("Tasa de error %", "Error rate %"), marker_color=c["crit"], marker_line_width=0))
     fig.add_trace(go.Bar(
         x=df["concurrencia"],
         y=df.get("errores", df["peticiones_totales"] * 0.01),
-        name="Errores (nº)", marker_color=c["high"], marker_line_width=0, visible="legendonly",
+        name=es_o_en("Errores (nº)", "Errors (count)"), marker_color=c["high"], marker_line_width=0, visible="legendonly",
     ))
-    fig.update_layout(title="Tasa de error por nivel de concurrencia",
-                      xaxis_title="Concurrencia", yaxis_title="%",
+    fig.update_layout(title=es_o_en("Tasa de error por nivel de concurrencia", "Error rate per concurrency level"),
+                      xaxis_title=es_o_en("Concurrencia", "Concurrency"), yaxis_title="%",
                       legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0))
     return _tema_carga(fig)
 
@@ -421,27 +433,65 @@ def mostrar_seccion(seccion: str, registros: list, supabase_configurado: bool):
             st.info("Los objetivos aparecerán aquí después de guardar un análisis.")
 
     elif seccion == "monitoring":
-        if registros:
-            fechas = pd.to_datetime(
-                [registro.get("created_at") for registro in registros],
-                errors="coerce", utc=True,
-            ).dropna().sort_values()
-            última_fecha = fechas.max().strftime("%Y-%m-%d %H:%M UTC") if not fechas.empty else "Fecha no disponible"
-            módulos = {registro.get("modulo") for registro in registros if registro.get("modulo")}
-            kpi_grid([
-                {"label": "Análisis registrados", "value": len(registros), "color": "primary"},
-                {"label": "Módulos con actividad", "value": len(módulos), "color": "ok"},
-                {"label": "Actividad más reciente", "value": última_fecha, "color": "low"},
-            ])
-            tabla(pd.DataFrame([{
-                "Fecha": str(registro.get("created_at", "")).replace("T", " ")[:16],
-                "Módulo": registro.get("modulo", ""),
-                "Objetivo": registro.get("url", ""),
-                "Hallazgos": int(registro.get("total_hallazgos") or 0),
-            } for registro in registros]))
-            st.caption("La actividad refleja análisis guardados; no representa monitoreo en tiempo real.")
-        else:
+        import plotly.graph_objects as go
+
+        if not registros:
             st.info("No hay actividad de análisis registrada todavía.")
+        else:
+            df = pd.DataFrame([{
+                "fecha": r.get("created_at"),
+                "modulo": r.get("modulo") or "—",
+                "url": r.get("url") or "",
+                "hallazgos": int(r.get("total_hallazgos") or 0),
+            } for r in registros])
+            df["fecha"] = pd.to_datetime(df["fecha"], errors="coerce", utc=True)
+            ultima = df["fecha"].max()
+            ultima_txt = ultima.strftime("%Y-%m-%d %H:%M UTC") if pd.notna(ultima) else "—"
+            kpi_grid([
+                {"label": "Análisis registrados", "value": len(df), "color": "primary"},
+                {"label": "Objetivos distintos", "value": int(df["url"].nunique()), "color": "low"},
+                {"label": "Hallazgos totales", "value": int(df["hallazgos"].sum()), "color": "high"},
+                {"label": "Módulos con actividad", "value": int(df["modulo"].nunique()), "color": "ok"},
+                {"label": "Última actividad", "value": ultima_txt, "color": "low"},
+            ])
+
+            nombres_modulo = {"load": "Carga", "audit": "Auditoría", "port": "Puertos"}
+
+            def _estilo(figura):
+                figura.update_layout(
+                    paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                    font=dict(color="#e6edf7"), height=260,
+                    margin=dict(t=10, b=10, l=10, r=10),
+                )
+                return figura
+
+            col_modulo, col_dia = st.columns(2)
+            with col_modulo:
+                section_header("Actividad por módulo", "Análisis guardados", "📊")
+                por_modulo = df.groupby("modulo").size()
+                st.plotly_chart(_estilo(go.Figure(go.Bar(
+                    x=[nombres_modulo.get(m, m) for m in por_modulo.index],
+                    y=list(por_modulo.values), marker_color="#22d3ee",
+                ))), use_container_width=True)
+            with col_dia:
+                section_header("Actividad por día", "Análisis por fecha", "📈")
+                con_fecha = df.dropna(subset=["fecha"])
+                if con_fecha.empty:
+                    st.info("Sin fechas disponibles.")
+                else:
+                    por_dia = con_fecha.groupby(con_fecha["fecha"].dt.strftime("%Y-%m-%d")).size()
+                    st.plotly_chart(_estilo(go.Figure(go.Bar(
+                        x=list(por_dia.index), y=list(por_dia.values), marker_color="#22c55e",
+                    ))), use_container_width=True)
+
+            section_header("Últimos análisis", "Detalle de la actividad registrada", "🕒")
+            tabla(pd.DataFrame([{
+                "Fecha": str(r.get("created_at", "")).replace("T", " ")[:16],
+                "Módulo": nombres_modulo.get(r.get("modulo"), r.get("modulo", "")),
+                "Objetivo": r.get("url", ""),
+                "Hallazgos": int(r.get("total_hallazgos") or 0),
+            } for r in registros]))
+            st.caption("La actividad refleja análisis guardados; no es monitoreo en tiempo real.")
 
     elif seccion == "reports":
         if registros:
@@ -471,6 +521,8 @@ def mostrar_seccion(seccion: str, registros: list, supabase_configurado: bool):
             ui_authorization_check(st.session_state.get("autorizado", False))
             section_header("Red y auditoría", "Preferencias de esta sesión", "⚙️")
             ui_internal_network_toggle()
+            section_header("Opciones de inyección SQL", "Parámetros del escáner de inyección", "🔧")
+            ui_sqli_options()
             ui_audit_options()
         with columna_apariencia:
             section_header("Apariencia y almacenamiento", "Estado actual", "🎨")
