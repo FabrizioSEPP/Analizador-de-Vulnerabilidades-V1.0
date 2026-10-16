@@ -20,6 +20,7 @@ def mostrar_historial(username: str):
         items = history.recientes(username, limite=12)
     except Exception:
         items = []
+    items = [item for item in items if item.get("modulo") != "sqli"]
     if not items:
         return
 

@@ -1,8 +1,10 @@
+from html import escape
+
 import streamlit as st
-from controllers.sqli_controller import ejecutar as ejecutar_sqli
 from controllers.load_controller import ejecutar as ejecutar_load
+from controllers.sqli_controller import ejecutar as ejecutar_sqli
 from controllers.audit_controller import ejecutar_audit_unificado, ejecutar_port_scan
-from models import db
+from models import db, history
 from models.auth_model import logout
 from views.components import (
     ui_sidebar, ui_authorization_check, ui_url_input_sidebar,
@@ -16,10 +18,45 @@ from views.components import (
 from models.i18n import t, es_o_en
 from views.login_view import mostrar as mostrar_login
 from views.history_view import mostrar_historial
+from views.dashboard_view import mostrar_dashboard, mostrar_seccion
+from views.audit_view import mostrar_inicio as mostrar_inicio_auditoria
+
+
+_AJUSTES_PERSISTENTES = (
+    "permitir_privadas",
+    "crawl_profundidad",
+    "crawl_max_paginas",
+    "tema",
+    "sqli_headers",
+    "sqli_pausa",
+    "sqli_max_objetivos",
+    "sqli_tiempo_maximo",
+    "sqli_max_peticiones",
+    "sqli_probar_cabeceras",
+    "sqli_probar_json",
+    "sqli_extraer",
+    "sqli_probar_apis",
+    "sqli_usar_navegador",
+    "sqli_segundo_orden",
+    "sqli_confirmar",
+    "sqli_abortar_waf",
+)
+
+
+def _sincronizar_ajustes():
+    """Streamlit borra el valor de un widget cuando su pantalla no se dibuja.
+    Estos ajustes viven en Configuracion: se guardan aparte y se restauran."""
+    guardado = st.session_state.setdefault("_ajustes_guardados", {})
+    for clave in _AJUSTES_PERSISTENTES:
+        if clave in st.session_state:
+            guardado[clave] = st.session_state[clave]
+        elif clave in guardado:
+            st.session_state[clave] = guardado[clave]
 
 
 def run():
-    st.set_page_config(page_title=t("Analizador de Vulnerabilidades Web"), layout="wide")
+    st.set_page_config(page_title=t("Corporativa Matheus | Ciberseguridad"), layout="wide")
+    _sincronizar_ajustes()
 
     # El idioma debe fijarse antes de inyectar el CSS.
     st.session_state.setdefault("idioma", "es")
@@ -28,6 +65,7 @@ def run():
     st.session_state.setdefault("permitir_privadas", False)
     st.session_state.setdefault("crawl_profundidad", 2)
     st.session_state.setdefault("crawl_max_paginas", 15)
+    st.session_state.setdefault("app_view", "dashboard")
     # Bandera de recarga diferida: se enciende al pulsar un módulo o la
     # autorización, y se consume al FINAL de run() (ver más abajo).
     st.session_state["_recargar"] = False
@@ -67,62 +105,71 @@ def run():
             st.session_state.get("selected_mode", "sqli"), autorizado
         )
         ui_ayuda_rapida()
-        autorizado = ui_authorization_check(False)
-        ui_internal_network_toggle()
-        ui_sqli_options()
-        ui_audit_options()
         mostrar_historial(user)
-        with st.container(key="sidebar-user-card"):
-            st.markdown(f"👤 **{user}**")
-            if db.esta_configurado():
-                st.caption(es_o_en("🗄️ Supabase conectado", "🗄️ Supabase connected"))
-            elif db.usando_base_local():
-                st.caption(es_o_en("🗄️ Base de datos local (SQLite)",
-                                   "🗄️ Local database (SQLite)"))
-            else:
-                st.caption(es_o_en("⚠️ Supabase sin configurar",
-                                   "⚠️ Supabase not configured"))
-            if st.button(t("🚪 Cerrar Sesión"), use_container_width=True, key="logout_btn"):
-                logout()
         with st.container(key="sidebar-theme-compact"):
             ui_language_selector()
-            ui_theme_selector()
         st.markdown(
             '<div class="sidebar-system-status">'
             '<span class="sidebar-system-status-dot"></span>'
             f'<span>{t("Sistema activo - Todos los módulos operativos")}</span></div>',
             unsafe_allow_html=True,
         )
+        supabase_configurado = db.esta_configurado()
+        with st.container(key="sidebar-user-card"):
+            st.markdown(
+                '<div class="sidebar-profile-head">'
+                '<div class="sidebar-profile-avatar">👤</div>'
+                '<div><div class="sidebar-profile-name">'
+                f'{escape(user or "Usuario")}'
+                '</div><div class="sidebar-profile-role">Sesión local</div></div></div>'
+                f'<div class="sidebar-profile-database">'
+                f'<span class="sidebar-profile-dot {"online" if supabase_configurado else "offline"}"></span>'
+                f'{"Supabase conectado" if supabase_configurado else "Supabase no configurado"}</div>',
+                unsafe_allow_html=True,
+            )
+            if st.button("Cerrar Sesión", use_container_width=True, key="logout_btn"):
+                logout()
 
     with st.container(key="main-toolbar"):
-        toolbar_columns = st.columns([6, 2, 2], vertical_alignment="center")
+        toolbar_columns = st.columns([6, 2, 1.8, 0.55], vertical_alignment="center")
         with toolbar_columns[0]:
-            url_input = ui_url_input_sidebar()
+            url_input = ui_url_input_sidebar(st.session_state.get("sidebar_url", ""))
         with toolbar_columns[1]:
-            ejecutar = ui_execute_button(autorizado, url_input)
+            ejecutar = ui_execute_button(autorizado, url_input, "▶ Ejecutar análisis")
         with toolbar_columns[2]:
             st.markdown(
                 '<div class="system-status"><span class="system-status-dot"></span>'
                 '<span>' + t("Sistema activo") + '</span></div>',
                 unsafe_allow_html=True,
             )
-
-    hero_header(url_input, selected_mode, autorizado)
+        with toolbar_columns[3]:
+            if st.button(
+                " ", icon=":material/account_circle:",
+                help="Abrir configuración de perfil", key="toolbar_profile",
+                use_container_width=True,
+            ):
+                st.session_state["app_view"] = "settings"
+                st.rerun()
 
     ui_guia()
 
     if ejecutar and autorizado and url_input.strip():
+        hero_header(url_input, selected_mode, autorizado)
         _dispatch(selected_mode, url_input.strip())
-    elif not autorizado:
-        aviso("info", t("🔒 Confirma tu autorización en la barra lateral para comenzar el análisis."))
-    elif not url_input.strip():
-        aviso("warning", t("Ingresa una URL en la barra lateral para comenzar."))
+    else:
+        if not autorizado and st.session_state.get("app_view") == "dashboard":
+            aviso("info", t("🔒 Ve a Configuración para confirmar la autorización y ajustar los permisos de red."))
+        registros = history.recientes(user, limite=50 if st.session_state.get("app_view") in ("monitoring", "reports", "assets") else 10)
+        if st.session_state.get("app_view") == "audit":
+            mostrar_inicio_auditoria(url_input, autorizado, selected_mode, registros)
+        elif st.session_state.get("app_view") == "dashboard":
+            mostrar_dashboard(registros, db.esta_configurado())
+        else:
+            mostrar_seccion(
+                st.session_state["app_view"], registros, db.esta_configurado()
+            )
 
-    # Recarga diferida — ver ui_navigation_buttons() y ui_authorization_check().
-    # Hacer st.rerun() ahí cortaba la pasada ANTES de que se declarara el input
-    # de URL, de modo que session_state["sidebar_url"] volvía a "" y el botón
-    # Ejecutar análisis aparecía bloqueado aunque la URL seguía visible en
-    # pantalla. Aquí ya se dibujó todo, así que el valor está commitado.
+    # Recarga diferida: se consume al final, cuando ya se dibujo todo.
     if st.session_state.get("_recargar", False):
         st.session_state["_recargar"] = False
         st.rerun()

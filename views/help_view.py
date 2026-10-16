@@ -16,6 +16,7 @@ una coma.
 import html as _html
 
 import streamlit as st
+from models.i18n import t
 
 from models.i18n import es_o_en
 

@@ -41,6 +41,20 @@ def mostrar(resultado: dict):
             st.plotly_chart(grafico_latencia_percentiles(resultado["niveles"]), use_container_width=True)
         with col_l2:
             st.plotly_chart(grafico_gauge_pgi(metricas["grado_pgi"], metricas["salud_global"]), use_container_width=True)
+            salud = metricas["salud_global"]
+            if salud in ("Excelente", "Buena"):
+                fondo_badge, texto_badge = "#166534", "#dcfce7"
+            elif salud in ("Aceptable", "Degradada"):
+                fondo_badge, texto_badge = "#854d0e", "#fef3c7"
+            else:
+                fondo_badge, texto_badge = "#991b1b", "#fee2e2"
+            st.markdown(
+                f'<div style="text-align:center;margin-top:8px">'
+                f'<span style="display:inline-block;background:{fondo_badge};'
+                f'color:{texto_badge};padding:6px 16px;border-radius:999px;'
+                f'font-weight:600">{salud}</span></div>',
+                unsafe_allow_html=True,
+            )
 
         col_l3, col_l4 = st.columns(2)
         with col_l3:
@@ -61,6 +75,32 @@ def mostrar(resultado: dict):
                                                          "No level data to show."),
             unsafe_allow_html=True,
         )
+
+    salud = metricas["salud_global"]
+    if salud in ("Excelente", "Buena"):
+        resumen_salud = "El sistema mantuvo un buen rendimiento durante la prueba."
+    elif salud in ("Degradada", "Crítica"):
+        resumen_salud = "El sistema mostró señales de degradación durante la prueba."
+    else:
+        resumen_salud = "El sistema mantuvo un rendimiento aceptable durante la prueba."
+    resumen_errores = (
+        "No se detectaron errores críticos."
+        if metricas["tasa_error_max"] < 5
+        else "Se detectaron errores durante la prueba."
+    )
+    st.markdown(
+        '<div style="background:#0b1a33;border:1px solid #12305a;'
+        'border-radius:14px;padding:18px 20px;color:#e6edf7">'
+        '<div style="font-size:18px;font-weight:700;margin-bottom:10px">'
+        '<span style="color:#22d3ee">✦</span> Conclusión</div>'
+        '<ul style="margin:0;padding-left:22px">'
+        '<li>✅ Prueba completada</li>'
+        f'<li>{resumen_salud}</li>'
+        f'<li>{resumen_errores}</li>'
+        '</ul></div>',
+        unsafe_allow_html=True,
+    )
+    st.button("Ver detalles →", key="load_view_details_placeholder")
 
     if metricas["recomendaciones"]:
         section_header(es_o_en("Recomendaciones de rendimiento", "Performance recommendations"),

@@ -18,22 +18,31 @@ def ejecutar(url_input: str):
     valida, msg = validar_url(url_input, permitir_privadas=st.session_state.get("permitir_privadas", False))
     if not valida:
         aviso("error", msg)
-        return
+        return None
 
-    progress_bar = st.progress(0.0)
-    status_text = st.empty()
+    progress_bar = None
+    status_text = None
+    resultado = None
 
-    def load_callback(progreso, mensaje):
-        progress_bar.progress(min(max(progreso, 0.0), 1.0))
-        status_text.markdown(aviso_html("info", mensaje), unsafe_allow_html=True)
+    try:
+        progress_bar = st.progress(0.0)
+        status_text = st.empty()
 
-    tester = LoadModel()
-    with st.spinner(t("Ejecutando prueba de carga...")):
-        resultado = tester.analizar(url_input, callback=load_callback)
+        def load_callback(progreso, mensaje):
+            progress_bar.progress(min(max(progreso, 0.0), 1.0))
+            status_text.markdown(aviso_html("info", mensaje), unsafe_allow_html=True)
 
-    history.guardar("load", url_input, resultado, st.session_state.get("current_user", ""))
+        tester = LoadModel()
+        with st.spinner(t("Ejecutando prueba de carga...")):
+            resultado = tester.analizar(url_input, callback=load_callback)
 
-    progress_bar.empty()
-    status_text.empty()
-    st.markdown("---")
-    mostrar_load(resultado)
+        history.guardar("load", url_input, resultado, st.session_state.get("current_user", ""))
+        return resultado
+    finally:
+        if progress_bar is not None:
+            progress_bar.empty()
+        if status_text is not None:
+            status_text.empty()
+        if resultado is not None:
+            st.markdown("---")
+            mostrar_load(resultado)
