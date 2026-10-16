@@ -138,6 +138,7 @@ joblib>=1.3
 numpy>=1.24,<2.3
 supabase>=2.0
 python-dotenv>=1.0
+reportlab>=4.0
 ```
 
 > **Por qué `streamlit>=1.42` y no `>=1.35`:** el código usa `st.container(key=...)`,
@@ -331,7 +332,7 @@ Valida URL → ejecuta `LoadModel.analizar()` → pasa resultado a `views.load_v
 
 ### `controllers/audit_controller.py`
 - `ejecutar_audit_unificado(url)` → Rastreo + auditoría profunda de cada página + phishing ML + consolidación OWASP → `views.audit_view.mostrar()`. Profundidad y máximo de páginas configurables en la barra lateral (**⚙️ Opciones de auditoría profunda**).
-- `ejecutar_port_scan(url)` → Escaneo de puertos → Tabla de resultados
+- `ejecutar_port_scan(url)` → Escaneo de puertos → `views.audit_view.mostrar_puertos()`: puntuación de seguridad 0-100, gráficos (gauge de nivel de seguridad, reparto de puertos por riesgo, impacto por puerto), detalle por servicio y **descarga de informe en `.md` o `.pdf`**
 
 ---
 

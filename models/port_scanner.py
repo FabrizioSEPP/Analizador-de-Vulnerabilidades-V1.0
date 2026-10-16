@@ -178,6 +178,26 @@ def nivel_general(amenazas: list) -> str:
     return "bajo"
 
 
+# Puntos que descuenta cada puerto abierto de la puntuación de seguridad (0-100).
+PESO_NIVEL = {"alto": 30, "medio": 12, "bajo": 3}
+
+
+def puntuacion_seguridad(amenazas: list) -> int:
+    """Nivel de seguridad del host según los puertos expuestos: 0 (crítico) a 100 (sin riesgo detectado)."""
+    score = 100
+    for a in amenazas:
+        score -= PESO_NIVEL.get(a["nivel"], PESO_NIVEL["medio"])
+    return max(0, score)
+
+
+def resumen_por_nivel(amenazas: list) -> dict:
+    """Recuento de puertos por nivel de riesgo (solo niveles presentes)."""
+    resumen = {}
+    for a in amenazas:
+        resumen[a["nivel"]] = resumen.get(a["nivel"], 0) + 1
+    return resumen
+
+
 # =============================================================================
 # REPORTE EN MARKDOWN
 # =============================================================================
@@ -192,6 +212,7 @@ def generar_reporte_markdown(resultado: dict, amenazas: list, ruta_md: str = Non
           f"**Dirección IP:** `{resultado['ip']}`  ",
           f"**Fecha:** {fecha}  ",
           f"**Puertos abiertos:** {resultado['total_puertos']}  ",
+          f"**Puntuación de seguridad:** {puntuacion_seguridad(amenazas)}/100  ",
           f"**Nivel de riesgo general:** {EMOJI_NIVEL[nivel]} **{ETIQUETA_NIVEL[nivel]}**",
           "", "---", "", "## Resumen de puertos encontrados", ""]
 
@@ -275,7 +296,8 @@ def generar_reporte_pdf(resultado: dict, amenazas: list, ruta_pdf: str = None) -
     elementos = [
         Paragraph("Informe de diagnóstico de seguridad web", est["titulo"]),
         Paragraph(f"{resultado['host']} &nbsp;·&nbsp; IP {resultado['ip']} &nbsp;·&nbsp; {fecha} "
-                   f"&nbsp;·&nbsp; {resultado['total_puertos']} puertos abiertos", est["meta"]),
+                   f"&nbsp;·&nbsp; {resultado['total_puertos']} puertos abiertos "
+                   f"&nbsp;·&nbsp; Puntuación {puntuacion_seguridad(amenazas)}/100", est["meta"]),
     ]
 
     banner = Table([[Paragraph(f"Nivel de riesgo general: {ETIQUETA_NIVEL[nivel]}", est["banner_titulo"])]], colWidths=[doc.width])

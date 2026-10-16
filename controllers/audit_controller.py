@@ -8,9 +8,12 @@ from models.http_utils import validar_url, normalizar_url
 from models.deep_audit import auditoria_profunda
 from models.phishing_ml import detectar_phishing
 from models.audit_consolidator import consolidar_auditoria
-from views.components import aviso, aviso_html, tabla, section_header
+from views.components import aviso, aviso_html
 from views.audit_view import mostrar as mostrar_audit
-from models.i18n import t, es_o_en
+from views.audit_view import mostrar_puertos
+from models.i18n import t
+
+RANGO_PUERTOS = "1-1024"
 
 
 def ejecutar_audit_unificado(url_input: str):
@@ -62,7 +65,7 @@ def ejecutar_audit_unificado(url_input: str):
 
 
 def ejecutar_port_scan(url_input: str):
-    from models.port_scanner import analizar_objetivo as escanear
+    from models.port_scanner import analizar_objetivo as escanear, analizar_amenazas
 
     if not url_input.strip():
         aviso("warning", t("Por favor, ingresa una URL o dominio."))
@@ -75,7 +78,7 @@ def ejecutar_port_scan(url_input: str):
         progress_bar.progress(0.2, t("Resolviendo host..."))
         t_inicio = time.time()
         resultado = escanear(
-            url_input, "1-1024",
+            url_input, RANGO_PUERTOS,
             permitir_privadas=st.session_state.get("permitir_privadas", False),
         )
         duracion_escaneo = time.time() - t_inicio
@@ -83,6 +86,8 @@ def ejecutar_port_scan(url_input: str):
         status_text.empty()
         progress_bar.progress(1.0, t("Escaneo completado"))
 
+        resultado["rango"] = RANGO_PUERTOS
+        resultado["amenazas"] = analizar_amenazas(resultado.get("puertos", []))
         history.guardar("port", url_input, resultado, st.session_state.get("current_user", ""))
 
         section_header(es_o_en("Puertos expuestos", "Exposed ports"),
@@ -193,9 +198,12 @@ def ejecutar_port_scan(url_input: str):
             st.button("Ver informe completo", use_container_width=True, key="port_scan_report_placeholder")
 
         progress_bar.empty()
+        mostrar_puertos(resultado, resultado["amenazas"])
     except ValueError as e:
         aviso("error", str(e))
         progress_bar.empty()
+        status_text.empty()
     except Exception as e:
         aviso("error", t("Error durante el escaneo: {}").format(e))
         progress_bar.empty()
+        status_text.empty()

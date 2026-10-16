@@ -14,6 +14,7 @@ from views.components import (
 )
 
 _SEV_KEY = {"Crítica": "crit", "Alta": "high", "Media": "med", "Baja": "low", "Info": "info"}
+_NIVEL_COLOR = {"alto": "crit", "medio": "med", "bajo": "ok"}
 
 
 def _sev_color(nivel: str, c: dict) -> str:
