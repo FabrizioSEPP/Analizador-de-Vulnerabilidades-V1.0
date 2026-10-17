@@ -12,6 +12,8 @@ from views.components import (
     ui_audit_options, ui_authorization_check, ui_internal_network_toggle,
     ui_theme_selector,
 )
+from models.port_scanner import PESO_NIVEL
+from models.i18n import t, es_o_en
 
 _SEV_KEY = {"Crítica": "crit", "Alta": "high", "Media": "med", "Baja": "low", "Info": "info"}
 _NIVEL_COLOR = {"alto": "crit", "medio": "med", "bajo": "ok"}
@@ -536,3 +538,77 @@ def mostrar_seccion(seccion: str, registros: list, supabase_configurado: bool):
                 f'<div style="font-weight:700;margin-top:7px">Supabase: {estado_datos}</div></div>',
                 unsafe_allow_html=True,
             )
+
+
+# ---------------------------------------------------------------------- puertos
+def grafico_gauge_seguridad(score: int) -> go.Figure:
+    """Gauge 0-100 con el nivel de seguridad del host según sus puertos expuestos."""
+    c = colores_actuales()
+    color = c["ok"] if score >= 75 else c["med"] if score >= 50 else c["high"] if score >= 25 else c["crit"]
+    fig = go.Figure(go.Indicator(
+        mode="gauge+number", value=score,
+        number=dict(font=dict(size=34, color=c["text"])),
+        title={"text": es_o_en("Nivel de seguridad de la página", "Site security level"),
+               "font": {"size": 14, "color": c["muted"]}},
+        gauge={
+            "axis": {"range": [0, 100], "dtick": 20, "tickcolor": c["muted"]},
+            "bar": {"color": color, "thickness": 0.72},
+            "bgcolor": "rgba(0,0,0,0)", "borderwidth": 1, "bordercolor": c["grid"],
+            "steps": [
+                {"range": [75, 100], "color": "rgba(52, 211, 153, 0.14)"},
+                {"range": [50, 75], "color": "rgba(56, 189, 248, 0.14)"},
+                {"range": [25, 50], "color": "rgba(251, 146, 60, 0.14)"},
+                {"range": [0, 25], "color": "rgba(248, 113, 113, 0.16)"},
+            ],
+            "threshold": {"line": {"color": color, "width": 3}, "thickness": 0.85, "value": score},
+        },
+    ))
+    return _tema(fig)
+
+
+def grafico_puertos_por_nivel(conteo: dict) -> go.Figure:
+    """Donut con el reparto de puertos abiertos por nivel de riesgo."""
+    c = colores_actuales()
+    etiquetas = {
+        "alto": es_o_en("Riesgo alto", "High risk"),
+        "medio": es_o_en("Riesgo medio", "Medium risk"),
+        "bajo": es_o_en("Riesgo bajo", "Low risk"),
+    }
+    niveles = [n for n in ("alto", "medio", "bajo") if conteo.get(n)]
+    fig = go.Figure(data=[go.Pie(
+        labels=[etiquetas[n] for n in niveles],
+        values=[conteo[n] for n in niveles],
+        marker=dict(colors=[c[_NIVEL_COLOR[n]] for n in niveles]),
+        hole=0.55, textinfo="label+percent", textfont=dict(size=11),
+    )])
+    fig.update_layout(title=es_o_en("Puertos por nivel de riesgo", "Ports by risk level"),
+                      showlegend=False)
+    return _tema(fig)
+
+
+def grafico_riesgo_por_puerto(amenazas: list) -> go.Figure:
+    """Barras horizontales: cuánto descuenta cada puerto abierto en la puntuación."""
+    c = colores_actuales()
+    etiquetas = {
+        "alto": es_o_en("Alto", "High"), "medio": es_o_en("Medio", "Medium"),
+        "bajo": es_o_en("Bajo", "Low"),
+    }
+    filas = sorted(amenazas, key=lambda a: PESO_NIVEL.get(a["nivel"], PESO_NIVEL["medio"]))
+    fig = go.Figure(go.Bar(
+        y=[f"{a['puerto']}/{a['protocolo']} · {a['servicio']}" for a in filas],
+        x=[PESO_NIVEL.get(a["nivel"], PESO_NIVEL["medio"]) for a in filas],
+        orientation="h",
+        marker_color=[c[_NIVEL_COLOR.get(a["nivel"], "info")] for a in filas],
+        marker_line_width=0,
+        text=[etiquetas.get(a["nivel"], a["nivel"]) for a in filas],
+        textposition="outside",
+        hovertemplate="%{y}<br>" + es_o_en("Puntos descontados", "Points deducted") + ": -%{x}<extra></extra>",
+    ))
+    fig.update_layout(
+        title=es_o_en("Impacto de cada puerto en la puntuación", "Per-port impact on the score"),
+        xaxis_title=es_o_en("Puntos descontados", "Points deducted"),
+        yaxis_title=es_o_en("Puerto · servicio", "Port · service"),
+        xaxis=dict(range=[0, max(PESO_NIVEL.values()) * 1.35]),
+        yaxis=dict(automargin=True),
+    )
+    return _tema(fig)
