@@ -11,10 +11,11 @@ from models.risk_score import (
 )
 from models.phishing_ml import detectar_phishing
 from models.remediation import get_remediation
-from models.i18n import es_o_en
+from models.i18n import t, es_o_en
 from models.port_scanner import (
     puntuacion_seguridad, nivel_general, resumen_por_nivel,
     generar_reporte_markdown, generar_reporte_pdf, EMOJI_NIVEL, ETIQUETA_NIVEL,
+    localizar_amenazas,
 )
 from views.components import (
     kpi_grid, section_header, tabla, aviso, color_severidad, colores_actuales,
@@ -30,31 +31,31 @@ _SEV_ICONS = {
 
 def mostrar_inicio(url: str, autorizado: bool, modo: str, historial: list):
     etiquetas_modo = {
-        "load": "Prueba de Carga",
-        "audit": "Auditoría Unificada",
-        "port": "Escaneo de Puertos",
+        "load": t("Prueba de Carga"),
+        "audit": t("Auditoría Unificada"),
+        "port": t("Escaneo de Puertos"),
     }
     ultima_auditoria = next(
         (item for item in historial if item.get("modulo") == "audit"), None
     )
     ultima_fecha = (
         str(ultima_auditoria.get("created_at", "")).replace("T", " ")[:16]
-        if ultima_auditoria else "Sin auditorías registradas"
+        if ultima_auditoria else t("Sin auditorías registradas")
     )
-    estado = "Autorizado" if autorizado else "Pendiente"
+    estado = t("Autorizado") if autorizado else t("Pendiente")
     color_estado = "#22c55e" if autorizado else "#facc15"
-    tipo_analisis = "Completo" if modo == "audit" else etiquetas_modo.get(modo, "Completo")
+    tipo_analisis = t("Completo") if modo == "audit" else t(etiquetas_modo.get(modo, "Completo"))
 
     st.markdown(
         '<div style="display:flex;align-items:center;gap:18px;margin:24px 0 28px">'
         '<span data-testid="stIconMaterial" translate="no" style="font-family:\'Material Symbols Rounded\';'
         'font-size:58px;font-weight:400;font-feature-settings:\'liga\';color:#22d3ee;line-height:1">shield</span>'
-        '<div><div style="font-size:28px;font-weight:700;color:#e6edf7">Auditoría Unificada</div>'
-        '<div style="font-size:14px;color:#9bb0c8;margin-top:5px">'
-        'Rastreo del sitio, análisis profundo del servicio y detección de phishing</div></div>'
+        f'<div><div style="font-size:28px;font-weight:700;color:#e6edf7">{t("Auditoría Unificada")}</div>'
+        f'<div style="font-size:14px;color:#9bb0c8;margin-top:5px">'
+        f'{t("Rastreo del sitio, análisis profundo del servicio y detección de phishing")}</div></div>'
         '<div style="margin-left:auto;border:1px solid #087c9b;border-radius:999px;'
         'padding:8px 13px;color:#22d3ee;font-size:12px;font-weight:700;white-space:nowrap">'
-        '◉ OWASP + Otros</div></div>',
+        f'◉ {t("OWASP + Otros")}</div></div>',
         unsafe_allow_html=True,
     )
     resumen = st.columns([1.7, 0.8, 0.9, 1.1])
@@ -62,16 +63,16 @@ def mostrar_inicio(url: str, autorizado: bool, modo: str, historial: list):
         st.markdown(
             '<div style="min-height:82px;background:#0b1a33;border:1px solid #12305a;'
             'border-radius:8px;padding:16px">'
-            '<div style="color:#9bb0c8;font-size:12px">Objetivo de auditoría</div>'
+            f'<div style="color:#9bb0c8;font-size:12px">{t("Objetivo de auditoría")}</div>'
             f'<div style="color:#e6edf7;font-weight:600;margin-top:10px;word-break:break-all">'
-            f'{_html.escape(url) if url else "Ingresa un objetivo en la barra superior"}</div></div>',
+            f'{_html.escape(url) if url else t("Ingresa un objetivo en la barra superior")}</div></div>',
             unsafe_allow_html=True,
         )
     with resumen[1]:
         st.markdown(
             '<div style="min-height:82px;background:#0b1a33;border:1px solid #12305a;'
             'border-radius:8px;padding:16px">'
-            '<div style="color:#9bb0c8;font-size:12px">Autorización</div>'
+            f'<div style="color:#9bb0c8;font-size:12px">{t("Autorización")}</div>'
             f'<div style="color:{color_estado};font-weight:700;margin-top:10px">● {estado}</div></div>',
             unsafe_allow_html=True,
         )
@@ -86,11 +87,11 @@ def mostrar_inicio(url: str, autorizado: bool, modo: str, historial: list):
         )
         with st.container(key="audit-analysis-type-card"):
             st.markdown(
-                '<div style="color:#9bb0c8;font-size:12px;margin-bottom:4px">Tipo de análisis</div>',
+                f'<div style="color:#9bb0c8;font-size:12px;margin-bottom:4px">{t("Tipo de análisis")}</div>',
                 unsafe_allow_html=True,
             )
             st.selectbox(
-                "Tipo de análisis",
+                t("Tipo de análisis"),
                 options=[tipo_analisis],
                 index=0,
                 key="audit_analysis_type",
@@ -100,12 +101,12 @@ def mostrar_inicio(url: str, autorizado: bool, modo: str, historial: list):
         st.markdown(
             '<div style="min-height:82px;background:#0b1a33;border:1px solid #12305a;'
             'border-radius:8px;padding:16px">'
-            '<div style="color:#9bb0c8;font-size:12px">Última auditoría</div>'
+            f'<div style="color:#9bb0c8;font-size:12px">{t("Última auditoría")}</div>'
             f'<div style="color:#e6edf7;font-weight:600;margin-top:10px">{_html.escape(ultima_fecha)}</div></div>',
             unsafe_allow_html=True,
         )
 
-    section_header("Módulos de análisis", "Herramientas disponibles para el objetivo", "🧭")
+    section_header(t("Módulos de análisis"), t("Herramientas disponibles para el objetivo"), "🧭")
     st.markdown(
         """
         <style>
@@ -126,21 +127,21 @@ def mostrar_inicio(url: str, autorizado: bool, modo: str, historial: list):
     )
     modulos = [
         {
-            "modo": "load", "icono": "bolt", "titulo": "Prueba de Carga",
-            "descripcion": "Evalúa latencia, capacidad y comportamiento bajo concurrencia.",
-            "detalle": "Simulación de usuarios y carga",
+            "modo": "load", "icono": "bolt", "titulo": t("Prueba de Carga"),
+            "descripcion": t("Evalúa latencia, capacidad y comportamiento bajo concurrencia."),
+            "detalle": t("Simulación de usuarios y carga"),
             "color": "#22c55e",
         },
         {
-            "modo": "audit", "icono": "shield", "titulo": "Auditoría Unificada",
-            "descripcion": "Rastrea el sitio y analiza exposición, configuración y phishing.",
-            "detalle": "Rastreo, detección y recomendaciones",
+            "modo": "audit", "icono": "shield", "titulo": t("Auditoría Unificada"),
+            "descripcion": t("Rastrea el sitio y analiza exposición, configuración y phishing."),
+            "detalle": t("Rastreo, detección y recomendaciones"),
             "color": "#22d3ee",
         },
         {
-            "modo": "port", "icono": "hub", "titulo": "Escaneo de Puertos",
-            "descripcion": "Detecta puertos TCP abiertos y servicios expuestos.",
-            "detalle": "Identificación de servicios y puertos",
+            "modo": "port", "icono": "hub", "titulo": t("Escaneo de Puertos"),
+            "descripcion": t("Detecta puertos TCP abiertos y servicios expuestos."),
+            "detalle": t("Identificación de servicios y puertos"),
             "color": "#38bdf8",
         },
     ]
@@ -169,7 +170,7 @@ def mostrar_inicio(url: str, autorizado: bool, modo: str, historial: list):
                         unsafe_allow_html=True,
                     )
                 with columna_configurar:
-                    if st.button("Configurar →", key=f"audit_module_{modulo['modo']}", use_container_width=True):
+                    if st.button(t("Configurar →"), key=f"audit_module_{modulo['modo']}", use_container_width=True):
                         st.session_state["selected_mode"] = modulo["modo"]
                         st.session_state["app_view"] = "dashboard"
                         st.rerun()
@@ -184,37 +185,38 @@ def mostrar(resultado: dict):
     exp = exposure_level(sc)
     summary = to_summary(hallazgos)
     score_color = c["ok"] if sc >= 90 else c["med"] if sc >= 55 else c["crit"]
-    fecha = str(resultado.get("fecha") or "Fecha no disponible")
+    fecha = str(resultado.get("fecha") or t("Fecha no disponible"))
     autorizado = st.session_state.get("autorizado", False)
-    estado = "Autorizado" if autorizado else "Completado"
+    estado = t("Autorizado") if autorizado else t("Completado")
     color_estado = "#22c55e" if autorizado else "#22d3ee"
 
     st.markdown(
         '<div style="display:flex;align-items:center;gap:16px;margin:16px 0 22px">'
         '<span data-testid="stIconMaterial" translate="no" style="font-family:\'Material Symbols Rounded\';'
         'font-size:60px;font-weight:400;font-feature-settings:\'liga\';color:#22d3ee;line-height:1">shield</span>'
-        '<div><div style="font-size:26px;font-weight:700;color:#e6edf7">Auditoría Unificada</div>'
-        '<div style="font-size:13px;color:#9bb0c8;margin-top:4px">'
-        'Rastreo del sitio, análisis profundo del servicio y detección de phishing</div></div>'
+        f'<div><div style="font-size:26px;font-weight:700;color:#e6edf7">{t("Auditoría Unificada")}</div>'
+        f'<div style="font-size:13px;color:#9bb0c8;margin-top:4px">'
+        f'{t("Rastreo del sitio, análisis profundo del servicio y detección de phishing")}</div></div>'
         '<div style="margin-left:auto;border:1px solid #087c9b;border-radius:999px;'
         'padding:8px 13px;color:#22d3ee;font-size:12px;font-weight:700;white-space:nowrap">'
-        '◉ OWASP + Otros</div></div>',
+        f'◉ {t("OWASP + Otros")}</div></div>',
         unsafe_allow_html=True,
     )
 
     metadatos = st.columns([2.4, 1, 1, 1.35])
     valores_metadata = [
-        ("Objetivo de auditoría", url or "Objetivo no disponible", "link"),
-        ("Modo de análisis", "Auditoría Unificada", "layers"),
-        ("Estado", estado, "verified_user"),
-        ("Última auditoría", fecha, "event"),
+        ("target", t("Objetivo de auditoría"), url or t("Objetivo no disponible"), "link"),
+        ("mode", t("Modo de análisis"), t("Auditoría Unificada"), "layers"),
+        ("status", t("Estado"), estado, "verified_user"),
+        ("date", t("Última auditoría"), fecha, "event"),
     ]
-    for indice, (etiqueta, valor, icono) in enumerate(valores_metadata):
+    for indice, (clave, etiqueta, valor, icono) in enumerate(valores_metadata):
         with metadatos[indice]:
-            color_valor = color_estado if etiqueta == "Estado" else "#e6edf7"
+            color_valor = color_estado if clave == "status" else "#e6edf7"
             subtitulo = (
-                f"{len(hallazgos)} hallazgos · {summary['critical']} críticos · {summary['high']} altos"
-                if etiqueta == "Objetivo de auditoría" else valor
+                f"{len(hallazgos)} {t('hallazgos')} · {summary['critical']} {t('críticos')} · "
+                f"{summary['high']} {t('altos')}"
+                if clave == "target" else valor
             )
             st.markdown(
                 f'<div style="min-height:82px;background:#0b1a33;border:1px solid #12305a;'
@@ -224,7 +226,7 @@ def mostrar(resultado: dict):
                 f'font-size:18px;font-feature-settings:\'liga\';color:#38bdf8">{icono}</span>{etiqueta}</div>'
                 f'<div style="font-size:14px;font-weight:650;color:{color_valor};margin-top:8px;'
                 f'word-break:break-word">{_html.escape(str(valor))}</div>'
-                f'{f"<div style=\"font-size:11px;color:#9bb0c8;margin-top:4px\">{_html.escape(subtitulo)}</div>" if etiqueta == "Objetivo de auditoría" else ""}'
+                f'{f"<div style=\"font-size:11px;color:#9bb0c8;margin-top:4px\">{_html.escape(subtitulo)}</div>" if clave == "target" else ""}'
                 '</div>',
                 unsafe_allow_html=True,
             )
@@ -249,13 +251,14 @@ def mostrar(resultado: dict):
     with columna_score:
         with st.container(key="audit-score-card"):
             st.markdown(
-                '<div style="font-size:12px;font-weight:700;color:#9bb0c8;margin:8px 0 0 8px">SECURITY SCORE</div>',
+                f'<div style="font-size:12px;font-weight:700;color:#9bb0c8;margin:8px 0 0 8px">'
+                f'{es_o_en("PUNTUACIÓN DE SEGURIDAD", "SECURITY SCORE")}</div>',
                 unsafe_allow_html=True,
             )
             figura_score = go.Figure(go.Indicator(
                 mode="gauge+number",
                 value=sc,
-                number={"suffix": "<br><span style='font-size:11px'>de 100</span>", "font": {"size": 30, "color": "#e6edf7"}},
+                number={"suffix": f"<br><span style='font-size:11px'>{t('de 100')}</span>", "font": {"size": 30, "color": "#e6edf7"}},
                 gauge={
                     "axis": {"range": [0, 100], "showticklabels": False, "ticks": ""},
                     "bar": {"color": score_color, "thickness": 0.28},
@@ -275,16 +278,16 @@ def mostrar(resultado: dict):
             st.plotly_chart(figura_score, use_container_width=True, config={"displayModeBar": False})
             st.markdown(
                 f'<div style="text-align:center;font-size:12px;color:{score_color};font-weight:700">'
-                f'{_html.escape(cls)} · EXPOSICIÓN { _html.escape(exp) }</div>',
+                f'{_html.escape(t(cls))} · {t("EXPOSICIÓN")} {_html.escape(t(exp))}</div>',
                 unsafe_allow_html=True,
             )
 
     severidades = [
-        ("Críticas", summary["critical"], "#fb7185", "✕"),
-        ("Altas", summary["high"], "#f97316", "△"),
-        ("Medias", summary["medium"], "#facc15", "▲"),
-        ("Bajas", summary["low"], "#22d3ee", "ⓘ"),
-        ("Informativas", summary["info"], "#94a3b8", "ⓘ"),
+        (t("Críticas"), summary["critical"], "#fb7185", "✕"),
+        (t("Altas"), summary["high"], "#f97316", "△"),
+        (t("Medias"), summary["medium"], "#facc15", "▲"),
+        (t("Bajas"), summary["low"], "#22d3ee", "ⓘ"),
+        (t("Informativas"), summary["info"], "#94a3b8", "ⓘ"),
     ]
     for columna, (etiqueta, cantidad, color, icono) in zip(columnas_severidad, severidades):
         with columna:
@@ -298,7 +301,7 @@ def mostrar(resultado: dict):
             )
 
     if hallazgos:
-        section_header("Matriz de inspección técnica", "Hallazgos detectados y acciones sugeridas", "🔎")
+        section_header(t("Matriz de inspección técnica"), t("Hallazgos detectados y acciones sugeridas"), "🔎")
         filas_matriz = []
         for hallazgo in hallazgos:
             severidad = normalize_severity(
@@ -307,16 +310,16 @@ def mostrar(resultado: dict):
             modulo = hallazgo.get("modulo", "unknown")
             remediacion = hallazgo.get("remediacion") or get_remediation(modulo).get("what", "—")
             filas_matriz.append({
-                "Control": hallazgo.get("descripcion", hallazgo.get("tipo", "Hallazgo")),
-                "Estado": "Detectado",
-                "Severidad": severidad,
-                "Evidencia": hallazgo.get("evidencia", "—"),
-                "Impacto": hallazgo.get("explicacion", "—"),
-                "Acción": remediacion,
+                t("Control"): t(str(hallazgo.get("descripcion", hallazgo.get("tipo", t("Hallazgo"))))),
+                t("Estado"): t("Detectado"),
+                t("Severidad"): t(severidad),
+                t("Evidencia"): t(str(hallazgo.get("evidencia", "—"))),
+                t("Impacto"): t(str(hallazgo.get("explicacion", "—"))),
+                t("Acción"): t(str(remediacion)),
             })
         tabla(pd.DataFrame(filas_matriz))
 
-        section_header("Detalle y remediación", "Evidencia técnica agrupada por severidad OWASP", "🧰")
+        section_header(t("Detalle y remediación"), t("Evidencia técnica agrupada por severidad OWASP"), "🧰")
         for sev in ["CRÍTICO", "ALTO", "MEDIO", "BAJO", "INFO"]:
             sev_hallazgos = [h for h in hallazgos
                              if normalize_severity(h.get("nivel_riesgo", h.get("severidad", "INFO"))) == sev]
@@ -324,68 +327,68 @@ def mostrar(resultado: dict):
                 continue
             color = color_severidad(sev)
             icon = _SEV_ICONS[sev]
-            with st.expander(f"{icon} {sev} ({len(sev_hallazgos)})", expanded=False):
+            with st.expander(f"{icon} {t(sev)} ({len(sev_hallazgos)})", expanded=False):
                 for h in sev_hallazgos:
                     mod = h.get("modulo", "unknown")
                     rem = get_remediation(mod)
                     st.markdown(f"""
                     <div style="background:#0b1a33;border:1px solid #12305a;border-left:3px solid {color};
                                 border-radius:8px;padding:16px;margin:10px 0;color:#e6edf7">
-                        <div style="font-weight:700">{icon} {_html.escape(str(h.get('descripcion', 'Hallazgo')))}</div>
+                        <div style="font-weight:700">{icon} {_html.escape(t(str(h.get('descripcion', t('Hallazgo')))))}</div>
                         <div style="font-size:12px;color:#9bb0c8;margin:6px 0">{_html.escape(str(mod))} · OWASP {_html.escape(str(h.get('owasp', '?')))}</div>
-                        <div style="line-height:1.5">{_html.escape(str(h.get('explicacion', h.get('evidencia', ''))))}</div>
-                        <div style="margin-top:10px"><b>Remediación:</b> {_html.escape(str(rem.get('what', '')))} — <i>{_html.escape(str(rem.get('where', '')))}</i></div>
+                        <div style="line-height:1.5">{_html.escape(t(str(h.get('explicacion', h.get('evidencia', '')))))}</div>
+                        <div style="margin-top:10px"><b>{t("Remediación:")}</b> {_html.escape(str(rem.get('what', '')))} — <i>{_html.escape(str(rem.get('where', '')))}</i></div>
                     </div>
                     """, unsafe_allow_html=True)
 
     prof = resultado.get("deep_analysis") or {}
     col1, col2 = st.columns(2)
     with col1:
-        st.markdown("#### 🔬 Análisis profundo")
-        st.markdown(f"**Score:** {prof.get('score_vulnerabilidad', 0)}/100 ({prof.get('nivel_vulnerabilidad', 'N/A')})")
-        st.markdown(f"**Páginas rastreadas:** {prof.get('total_paginas', 0)}")
-        st.markdown(f"**Hallazgos:** {prof.get('total_errores', 0)}")
+        st.markdown(f"#### 🔬 {t('Análisis profundo')}")
+        st.markdown(f"**{t('Score')}:** {prof.get('score_vulnerabilidad', 0)}/100 ({t(str(prof.get('nivel_vulnerabilidad', 'N/A')))})")
+        st.markdown(f"**{t('Páginas rastreadas:')}** {prof.get('total_paginas', 0)}")
+        st.markdown(f"**{t('Hallazgos:')}** {prof.get('total_errores', 0)}")
     with col2:
         phish = resultado.get("phishing")
         if not phish:
             phish = detectar_phishing(url) if url else {"resultado": "N/A", "score_riesgo": 0}
         phish_res = phish.get("resultado", "N/A")
         icono = "🎯" if phish_res == "PHISHING" else "✅" if phish_res == "LEGITIMA" else "❓"
-        st.markdown("#### 🎯 Detección de phishing (ML)")
-        st.markdown(f"**Resultado:** {icono} {phish_res}")
-        st.markdown(f"**Score de riesgo:** {phish.get('score_riesgo', 0)}%")
-        st.markdown(f"**Confianza del modelo:** {phish.get('confianza', 0)}%")
+        st.markdown(f"#### 🎯 {t('Detección de phishing (ML)')}")
+        st.markdown(f"**{t('Resultado:')}** {icono} {t(str(phish_res))}")
+        st.markdown(f"**{t('Score de riesgo:')}** {phish.get('score_riesgo', 0)}%")
+        st.markdown(f"**{t('Confianza del modelo:')}** {phish.get('confianza', 0)}%")
 
     tecnologias = prof.get("tecnologias") or []
     paginas = prof.get("paginas") or []
     if tecnologias or paginas:
         if tecnologias:
-            pills = "".join(f'<span class="pill pill-mode" style="margin-right:6px;">{_html.escape(t)}</span>' for t in tecnologias)
-            st.markdown(f'<div style="margin:14px 0 6px;"><b>🧬 Tecnologías detectadas:</b> {pills}</div>', unsafe_allow_html=True)
+            pills = "".join(f'<span class="pill pill-mode" style="margin-right:6px;">{_html.escape(tec)}</span>' for tec in tecnologias)
+            st.markdown(f'<div style="margin:14px 0 6px;"><b>🧬 {t("Tecnologías detectadas:")}</b> {pills}</div>', unsafe_allow_html=True)
         if paginas:
-            with st.expander(f"🌐 Páginas rastreadas ({len(paginas)})", expanded=False):
+            with st.expander(t("Páginas rastreadas ({})").format(len(paginas)), expanded=False):
                 tabla(pd.DataFrame([
                     {"URL": p.get("url", ""), "HTTP": p.get("status", 0),
-                     "Título": p.get("titulo", ""), "Hallazgos": p.get("hallazgos", "")}
+                     t("Título"): p.get("titulo", ""), t("Hallazgos"): p.get("hallazgos", "")}
                     for p in paginas
                 ]))
 
     if hallazgos:
-        section_header("Distribución de severidad", "Reparto de hallazgos por criticidad", "📊")
+        section_header(t("Distribución de severidad"), t("Reparto de hallazgos por criticidad"), "📊")
         sev_counts = {}
         for h in hallazgos:
             sev = normalize_severity(h.get("nivel_riesgo", h.get("severidad", "INFO")))
             sev_counts[sev] = sev_counts.get(sev, 0) + 1
         labels = [s for s in ["CRÍTICO", "ALTO", "MEDIO", "BAJO", "INFO"] if s in sev_counts]
         fig = go.Figure(data=[go.Pie(
-            labels=labels, values=[sev_counts[s] for s in labels],
+            labels=[t(s) for s in labels], values=[sev_counts[s] for s in labels],
             marker=dict(colors=[color_severidad(s) for s in labels]), hole=0.55,
             textinfo="label+percent",
         )])
         fig.update_layout(
             template=c["template"], paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
             font=dict(family="Inter, Segoe UI, sans-serif", color=c["text"]),
-            title=dict(text="Distribución de hallazgos", font=dict(size=15, color=c["text"]), x=0.02, xanchor="left"),
+            title=dict(text=t("Distribución de hallazgos"), font=dict(size=15, color=c["text"]), x=0.02, xanchor="left"),
             margin=dict(t=54, b=24, l=24, r=24), showlegend=False,
         )
         st.plotly_chart(fig, use_container_width=True)
@@ -398,6 +401,11 @@ def mostrar_solo_sql(resultado: dict):
 
 # --------------------------------------------------------------------- puertos
 _NIVEL_COLOR_TOKEN = {"alto": "crit", "medio": "med", "bajo": "ok"}
+_NIVEL_EN = {"alto": "High risk", "medio": "Medium risk", "bajo": "Low risk"}
+
+
+def _etiqueta_nivel(nivel: str) -> str:
+    return es_o_en(ETIQUETA_NIVEL.get(nivel, nivel), _NIVEL_EN.get(nivel, nivel))
 
 
 def mostrar_puertos(resultado: dict, amenazas: list):
@@ -413,7 +421,7 @@ def mostrar_puertos(resultado: dict, amenazas: list):
     host = str(resultado.get("host", ""))
     ip = str(resultado.get("ip", ""))
     rango = str(resultado.get("rango", "1-1024"))
-    amenazas = amenazas or []
+    amenazas = localizar_amenazas(amenazas or [])
     total = int(resultado.get("total_puertos", len(amenazas)))
     score = puntuacion_seguridad(amenazas)
     nivel = nivel_general(amenazas)
@@ -432,7 +440,7 @@ def mostrar_puertos(resultado: dict, amenazas: list):
                 {total} {es_o_en("puerto(s) abierto(s)", "open port(s)")}
             </div>
         </div>
-        <div style="font-size:1.05rem;font-weight:800;color:{color_score};">{score}/100 · {EMOJI_NIVEL[nivel]} {ETIQUETA_NIVEL[nivel]}</div>
+        <div style="font-size:1.05rem;font-weight:800;color:{color_score};">{score}/100 · {EMOJI_NIVEL[nivel]} {_etiqueta_nivel(nivel)}</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -440,7 +448,7 @@ def mostrar_puertos(resultado: dict, amenazas: list):
         {"label": es_o_en("Puertos abiertos", "Open ports"), "value": total,
          "color": _NIVEL_COLOR_TOKEN[nivel] if amenazas else "ok"},
         {"label": es_o_en("Riesgo general", "Overall risk"),
-         "value": f"{EMOJI_NIVEL[nivel]} {ETIQUETA_NIVEL[nivel]}", "color": _NIVEL_COLOR_TOKEN[nivel]},
+         "value": f"{EMOJI_NIVEL[nivel]} {_etiqueta_nivel(nivel)}", "color": _NIVEL_COLOR_TOKEN[nivel]},
         {"label": es_o_en("Puntuación de seguridad", "Security score"), "value": f"{score}/100",
          "color": "ok" if score >= 75 else "med" if score >= 50 else "crit"},
         {"label": es_o_en("Rango escaneado", "Scanned range"), "value": rango, "color": "primary"},
@@ -462,7 +470,7 @@ def mostrar_puertos(resultado: dict, amenazas: list):
             {
                 es_o_en("Puerto", "Port"): f"{a['puerto']}/{a['protocolo']}",
                 es_o_en("Servicio", "Service"): a["servicio"],
-                es_o_en("Nivel", "Level"): f"{EMOJI_NIVEL[a['nivel']]} {ETIQUETA_NIVEL[a['nivel']]}",
+                es_o_en("Nivel", "Level"): f"{EMOJI_NIVEL[a['nivel']]} {_etiqueta_nivel(a['nivel'])}",
                 es_o_en("Hallazgo", "Finding"): a["nombre"],
             }
             for a in amenazas

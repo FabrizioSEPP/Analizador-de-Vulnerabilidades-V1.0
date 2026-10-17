@@ -73,7 +73,8 @@ def _tema_carga(fig: go.Figure, leyenda_inferior: bool = False) -> go.Figure:
     )
     fig.update_traces(
         selector={"type": "indicator"},
-        title={"text": "Grado de salud (PGI)", "font": {"size": 14, "color": "#e6edf7"}},
+        title={"text": es_o_en("Grado de salud (PGI)", "Health score (PGI)"),
+               "font": {"size": 14, "color": "#e6edf7"}},
         number={"font": {"color": "#e6edf7"}},
         gauge={"axis": {
             "tickcolor": "#e6edf7", "tickfont": {"color": "#e6edf7"},
@@ -84,9 +85,10 @@ def _tema_carga(fig: go.Figure, leyenda_inferior: bool = False) -> go.Figure:
 
 def grafico_severidad_donub(por_severidad: dict) -> go.Figure:
     c = colores_actuales()
-    labels = list(por_severidad.keys())
+    claves = list(por_severidad.keys())
+    labels = [t(str(clave)) for clave in claves]
     values = list(por_severidad.values())
-    colors = [_sev_color(l, c) for l in labels]
+    colors = [_sev_color(clave, c) for clave in claves]
     fig = go.Figure(data=[go.Pie(
         labels=labels, values=values, marker=dict(colors=colors), hole=0.55,
         textinfo="label+percent", textfont=dict(size=11),
@@ -113,6 +115,10 @@ def grafico_confianza_por_parametro(hallazgos: list) -> go.Figure:
         fig.add_trace(go.Bar(
             x=subset["parámetro"], y=subset["confianza"],
             name=tipo, marker_color=color, marker_line_width=0,
+            hovertemplate=(
+                es_o_en("Parámetro", "Parameter") + ": %{x}<br>"
+                + es_o_en("Confianza", "Confidence") + ": %{y}%<extra></extra>"
+            ),
         ))
     fig.update_layout(title=es_o_en("Confianza por parámetro", "Confidence by parameter"), barmode="group",
                       yaxis_title=es_o_en("Confianza (%)", "Confidence (%)"),
@@ -209,7 +215,7 @@ def grafico_latencia_percentiles(niveles: list) -> go.Figure:
     c = colores_actuales()
     df = pd.DataFrame(niveles)
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=df["concurrencia"], y=df["latencia_base"], mode="lines+markers", name="Base", line=dict(color=c["muted"], dash="dash")))
+    fig.add_trace(go.Scatter(x=df["concurrencia"], y=df["latencia_base"], mode="lines+markers", name=t("Base"), line=dict(color=c["muted"], dash="dash")))
     fig.add_trace(go.Scatter(x=df["concurrencia"], y=df["latencia_p50"], mode="lines+markers", name="p50", line=dict(color=c["ok"])))
     fig.add_trace(go.Scatter(x=df["concurrencia"], y=df["latencia_p90"], mode="lines+markers", name="p90", line=dict(color=c["med"])))
     fig.add_trace(go.Scatter(x=df["concurrencia"], y=df["latencia_p95"], mode="lines+markers", name="p95", line=dict(color=c["high"])))
@@ -289,29 +295,29 @@ def grafico_barra_estado(niveles: list) -> go.Figure:
 def mostrar_dashboard(registros: list, supabase_configurado: bool):
     registros = [item for item in (registros or []) if item.get("modulo") != "sqli"]
     etiquetas_modulo = {
-        "load": "Prueba de Carga",
-        "audit": "Auditoría Unificada",
-        "port": "Escaneo de Puertos",
+        "load": t("Prueba de Carga"),
+        "audit": t("Auditoría Unificada"),
+        "port": t("Escaneo de Puertos"),
     }
     objetivos = {str(item.get("url", "")).strip() for item in registros if item.get("url")}
     modulos = {item.get("modulo") for item in registros if item.get("modulo")}
     total_hallazgos = sum(int(item.get("total_hallazgos") or 0) for item in registros)
 
     section_header(
-        "Resumen de seguridad",
-        "Actividad reciente y resultados registrados",
+        t("Resumen de seguridad"),
+        t("Actividad reciente y resultados registrados"),
         "🛡️",
     )
     kpi_grid([
-        {"label": "Análisis recientes", "value": len(registros), "sub": "Hasta 10 registros", "color": "primary"},
-        {"label": "Hallazgos registrados", "value": total_hallazgos, "color": "high"},
-        {"label": "Objetivos analizados", "value": len(objetivos), "color": "low"},
-        {"label": "Módulos con actividad", "value": len(modulos), "color": "ok"},
+        {"label": t("Análisis recientes"), "value": len(registros), "sub": t("Hasta 10 registros"), "color": "primary"},
+        {"label": t("Hallazgos registrados"), "value": total_hallazgos, "color": "high"},
+        {"label": t("Objetivos analizados"), "value": len(objetivos), "color": "low"},
+        {"label": t("Módulos con actividad"), "value": len(modulos), "color": "ok"},
     ])
 
     columna_actividad, columna_modulos = st.columns([1.4, 1])
     with columna_actividad:
-        section_header("Evolución de actividad", "Análisis guardados por fecha", "📈")
+        section_header(t("Evolución de actividad"), t("Análisis guardados por fecha"), "📈")
         actividad = pd.DataFrame([
             {"fecha": pd.to_datetime(item.get("created_at"), errors="coerce", utc=True)}
             for item in registros
@@ -325,26 +331,26 @@ def mostrar_dashboard(registros: list, supabase_configurado: bool):
                 line=dict(color="#22d3ee", width=3),
                 marker=dict(color="#22d3ee", size=8),
                 fill="tozeroy", fillcolor="rgba(34,211,238,0.10)",
-                hovertemplate="%{x}<br>Análisis: %{y}<extra></extra>",
+                hovertemplate="%{x}<br>" + t("Análisis: %{y}") + "<extra></extra>",
             ))
             figura_actividad.update_layout(
-                title="Análisis por día", yaxis_title="Análisis",
+                title=t("Análisis por día"), yaxis_title=t("Análisis"),
                 xaxis_title="", showlegend=False, height=300,
             )
             st.plotly_chart(_tema(figura_actividad), use_container_width=True)
         else:
-            st.info("Todavía no hay fechas de análisis para mostrar.")
+            st.info(t("Todavía no hay fechas de análisis para mostrar."))
 
     with columna_modulos:
-        section_header("Actividad por módulo", "Distribución de análisis guardados", "◉")
+        section_header(t("Actividad por módulo"), t("Distribución de análisis guardados"), "◉")
         conteo_modulos = {}
         for item in registros:
             modulo = item.get("modulo", "")
-            etiqueta = etiquetas_modulo.get(modulo, modulo or "Otro")
+            etiqueta = etiquetas_modulo.get(modulo, modulo or t("Otro"))
             conteo_modulos[etiqueta] = conteo_modulos.get(etiqueta, 0) + 1
         if conteo_modulos:
-            paleta = {"Prueba de Carga": "#22c55e", "Auditoría Unificada": "#22d3ee",
-                      "Escaneo de Puertos": "#3b82f6"}
+            paleta = {t("Prueba de Carga"): "#22c55e", t("Auditoría Unificada"): "#22d3ee",
+                      t("Escaneo de Puertos"): "#3b82f6"}
             figura_modulos = go.Figure(data=[go.Pie(
                 labels=list(conteo_modulos), values=list(conteo_modulos.values()),
                 hole=0.64,
@@ -354,7 +360,7 @@ def mostrar_dashboard(registros: list, supabase_configurado: bool):
             figura_modulos.update_layout(
                 showlegend=False, height=300,
                 annotations=[dict(
-                    text=f"{len(registros)}<br><span style='font-size:11px'>análisis</span>",
+                    text=f"{len(registros)}<br><span style='font-size:11px'>{t('análisis')}</span>",
                     x=0.5, y=0.5, showarrow=False,
                     font=dict(size=20, color=colores_actuales()["text"]),
                 )],
@@ -362,23 +368,23 @@ def mostrar_dashboard(registros: list, supabase_configurado: bool):
             )
             st.plotly_chart(_tema(figura_modulos), use_container_width=True)
         else:
-            st.info("La distribución aparecerá cuando haya análisis registrados.")
+            st.info(t("La distribución aparecerá cuando haya análisis registrados."))
 
-    section_header("Historial de auditorías", "Últimos análisis guardados", "🗂️")
+    section_header(t("Historial de auditorías"), t("Últimos análisis guardados"), "🗂️")
     if registros:
         filas = [{
-            "Fecha": str(item.get("created_at", "")).replace("T", " ")[:16],
-            "Módulo": etiquetas_modulo.get(item.get("modulo"), item.get("modulo", "")),
-            "Objetivo": item.get("url", ""),
-            "Hallazgos": int(item.get("total_hallazgos") or 0),
-            "Nivel": item.get("nivel") or "—",
+            t("Fecha"): str(item.get("created_at", "")).replace("T", " ")[:16],
+            t("Módulo"): etiquetas_modulo.get(item.get("modulo"), item.get("modulo", "")),
+            t("Objetivo"): item.get("url", ""),
+            t("Hallazgos"): int(item.get("total_hallazgos") or 0),
+            t("Nivel"): item.get("nivel") or "—",
         } for item in registros]
         tabla(pd.DataFrame(filas))
     else:
-        st.info("No hay análisis guardados todavía. El historial aparecerá aquí al completar un análisis.")
+        st.info(t("No hay análisis guardados todavía. El historial aparecerá aquí al completar un análisis."))
 
-    estado_datos = "Configurado" if supabase_configurado else "No configurado"
-    st.caption(f"Almacenamiento de historial: Supabase {estado_datos}.")
+    estado_datos = t("Configurado") if supabase_configurado else t("No configurado")
+    st.caption(t("Almacenamiento de historial: Supabase {}.").format(estado_datos))
 
 
 # ------------------------------------------------------- informe ejecutivo
@@ -600,14 +606,14 @@ def _mostrar_reporte_ejecutivo(registros: list):
 
 def mostrar_seccion(seccion: str, registros: list, supabase_configurado: bool):
     nombres = {
-        "vulnerabilities": "Vulnerabilidades",
-        "assets": "Activos",
-        "monitoring": "Monitoreo",
-        "reports": "Reportes",
-        "settings": "Configuración",
+        "vulnerabilities": t("Vulnerabilidades"),
+        "assets": t("Activos"),
+        "monitoring": t("Monitoreo"),
+        "reports": t("Reportes"),
+        "settings": t("Configuración"),
     }
     if seccion not in nombres:
-        st.info("Selecciona una sección del menú.")
+        st.info(t("Selecciona una sección del menú."))
         return
 
     if seccion != "reports":
@@ -615,11 +621,11 @@ def mostrar_seccion(seccion: str, registros: list, supabase_configurado: bool):
     else:
         registros = list(registros or [])
     subtitulos = {
-        "reports": "Informe ejecutivo, plan de acción y exportaciones",
+        "reports": t("Informe ejecutivo, plan de acción y exportaciones"),
     }
     section_header(
         nombres[seccion],
-        subtitulos.get(seccion, "Datos disponibles del historial de análisis"),
+        subtitulos.get(seccion, t("Datos disponibles del historial de análisis")),
         "◈",
     )
 
@@ -631,21 +637,21 @@ def mostrar_seccion(seccion: str, registros: list, supabase_configurado: bool):
                 filas.append({
                     "Fecha": str(registro.get("created_at", "")).replace("T", " ")[:16],
                     "Objetivo": registro.get("url", ""),
-                    "Módulo": registro.get("modulo", ""),
-                    "Hallazgo": hallazgo.get("descripcion") or hallazgo.get("tipo") or "Hallazgo",
+                    "Módulo": etiqueta_modulo(registro.get("modulo", "")),
+                    "Hallazgo": t(str(hallazgo.get("descripcion") or hallazgo.get("tipo") or t("Hallazgo"))),
                     "Severidad": hallazgo.get("severidad") or hallazgo.get("nivel_riesgo") or "INFO",
                     "OWASP": hallazgo.get("owasp") or "—",
                 })
         if filas:
             df_hallazgos = pd.DataFrame(filas)
             kpi_grid([
-                {"label": "Hallazgos", "value": len(filas), "color": "high"},
-                {"label": "Críticos", "value": sum(normalize_severity(f) == "CRÍTICO" for f in df_hallazgos["Severidad"]), "color": "crit"},
-                {"label": "Altos", "value": sum(normalize_severity(f) == "ALTO" for f in df_hallazgos["Severidad"]), "color": "high"},
+                {"label": t("Hallazgos"), "value": len(filas), "color": "high"},
+                {"label": t("Críticos"), "value": sum(normalize_severity(f) == "CRÍTICO" for f in df_hallazgos["Severidad"]), "color": "crit"},
+                {"label": t("Altos"), "value": sum(normalize_severity(f) == "ALTO" for f in df_hallazgos["Severidad"]), "color": "high"},
             ])
             tabla(df_hallazgos)
         else:
-            st.info("No hay vulnerabilidades guardadas en los análisis recientes.")
+            st.info(t("No hay vulnerabilidades guardadas en los análisis recientes."))
 
     elif seccion == "assets":
         activos = {}
@@ -655,23 +661,23 @@ def mostrar_seccion(seccion: str, registros: list, supabase_configurado: bool):
                 activos[objetivo] = {
                     "Objetivo": objetivo,
                     "Último análisis": str(registro.get("created_at", "")).replace("T", " ")[:16],
-                    "Módulo": registro.get("modulo", ""),
+                    "Módulo": etiqueta_modulo(registro.get("modulo", "")),
                     "Hallazgos": int(registro.get("total_hallazgos") or 0),
                 }
         if activos:
             kpi_grid([
-                {"label": "Objetivos registrados", "value": len(activos), "color": "low"},
-                {"label": "Registros revisados", "value": len(registros), "color": "primary"},
+                {"label": t("Objetivos registrados"), "value": len(activos), "color": "low"},
+                {"label": t("Registros revisados"), "value": len(registros), "color": "primary"},
             ])
             tabla(pd.DataFrame(list(activos.values())))
         else:
-            st.info("Los objetivos aparecerán aquí después de guardar un análisis.")
+            st.info(t("Los objetivos aparecerán aquí después de guardar un análisis."))
 
     elif seccion == "monitoring":
         import plotly.graph_objects as go
 
         if not registros:
-            st.info("No hay actividad de análisis registrada todavía.")
+            st.info(t("No hay actividad de análisis registrada todavía."))
         else:
             df = pd.DataFrame([{
                 "fecha": r.get("created_at"),
@@ -683,14 +689,14 @@ def mostrar_seccion(seccion: str, registros: list, supabase_configurado: bool):
             ultima = df["fecha"].max()
             ultima_txt = ultima.strftime("%Y-%m-%d %H:%M UTC") if pd.notna(ultima) else "—"
             kpi_grid([
-                {"label": "Análisis registrados", "value": len(df), "color": "primary"},
-                {"label": "Objetivos distintos", "value": int(df["url"].nunique()), "color": "low"},
-                {"label": "Hallazgos totales", "value": int(df["hallazgos"].sum()), "color": "high"},
-                {"label": "Módulos con actividad", "value": int(df["modulo"].nunique()), "color": "ok"},
-                {"label": "Última actividad", "value": ultima_txt, "color": "low"},
+                {"label": t("Análisis registrados"), "value": len(df), "color": "primary"},
+                {"label": t("Objetivos distintos"), "value": int(df["url"].nunique()), "color": "low"},
+                {"label": t("Hallazgos totales"), "value": int(df["hallazgos"].sum()), "color": "high"},
+                {"label": t("Módulos con actividad"), "value": int(df["modulo"].nunique()), "color": "ok"},
+                {"label": t("Última actividad"), "value": ultima_txt, "color": "low"},
             ])
 
-            nombres_modulo = {"load": "Carga", "audit": "Auditoría", "port": "Puertos"}
+            nombres_modulo = {"load": t("Carga"), "audit": t("Auditoría"), "port": t("Puertos")}
 
             def _estilo(figura):
                 figura.update_layout(
@@ -702,56 +708,56 @@ def mostrar_seccion(seccion: str, registros: list, supabase_configurado: bool):
 
             col_modulo, col_dia = st.columns(2)
             with col_modulo:
-                section_header("Actividad por módulo", "Análisis guardados", "📊")
+                section_header(t("Actividad por módulo"), t("Análisis guardados"), "📊")
                 por_modulo = df.groupby("modulo").size()
                 st.plotly_chart(_estilo(go.Figure(go.Bar(
                     x=[nombres_modulo.get(m, m) for m in por_modulo.index],
                     y=list(por_modulo.values), marker_color="#22d3ee",
                 ))), use_container_width=True)
             with col_dia:
-                section_header("Actividad por día", "Análisis por fecha", "📈")
+                section_header(t("Actividad por día"), t("Análisis por fecha"), "📈")
                 con_fecha = df.dropna(subset=["fecha"])
                 if con_fecha.empty:
-                    st.info("Sin fechas disponibles.")
+                    st.info(t("Sin fechas disponibles."))
                 else:
                     por_dia = con_fecha.groupby(con_fecha["fecha"].dt.strftime("%Y-%m-%d")).size()
                     st.plotly_chart(_estilo(go.Figure(go.Bar(
                         x=list(por_dia.index), y=list(por_dia.values), marker_color="#22c55e",
                     ))), use_container_width=True)
 
-            section_header("Últimos análisis", "Detalle de la actividad registrada", "🕒")
+            section_header(t("Últimos análisis"), t("Detalle de la actividad registrada"), "🕒")
             tabla(pd.DataFrame([{
-                "Fecha": str(r.get("created_at", "")).replace("T", " ")[:16],
-                "Módulo": nombres_modulo.get(r.get("modulo"), r.get("modulo", "")),
-                "Objetivo": r.get("url", ""),
-                "Hallazgos": int(r.get("total_hallazgos") or 0),
+                t("Fecha"): str(r.get("created_at", "")).replace("T", " ")[:16],
+                t("Módulo"): nombres_modulo.get(r.get("modulo"), r.get("modulo", "")),
+                t("Objetivo"): r.get("url", ""),
+                t("Hallazgos"): int(r.get("total_hallazgos") or 0),
             } for r in registros]))
-            st.caption("La actividad refleja análisis guardados; no es monitoreo en tiempo real.")
+            st.caption(t("La actividad refleja análisis guardados; no es monitoreo en tiempo real."))
 
     elif seccion == "reports":
         if registros:
             _mostrar_reporte_ejecutivo(registros)
         else:
-            st.info("No hay análisis guardados para generar un reporte.")
+            st.info(t("No hay análisis guardados para generar un reporte."))
 
     elif seccion == "settings":
         columna_opciones, columna_apariencia = st.columns([1.4, 1])
         with columna_opciones:
-            section_header("Autorización", "Condiciones previas de análisis", "🔐")
+            section_header(t("Autorización"), t("Condiciones previas de análisis"), "🔐")
             ui_authorization_check(st.session_state.get("autorizado", False))
-            section_header("Red y auditoría", "Preferencias de esta sesión", "⚙️")
+            section_header(t("Red y auditoría"), t("Preferencias de esta sesión"), "⚙️")
             ui_internal_network_toggle()
-            section_header("Opciones de inyección SQL", "Parámetros del escáner de inyección", "🔧")
+            section_header(t("Opciones de inyección SQL"), t("Parámetros del escáner de inyección"), "🔧")
             ui_sqli_options()
             ui_audit_options()
         with columna_apariencia:
-            section_header("Apariencia y almacenamiento", "Estado actual", "🎨")
+            section_header(t("Apariencia y almacenamiento"), t("Estado actual"), "🎨")
             ui_theme_selector()
-            estado_datos = "Conectado" if supabase_configurado else "No configurado"
+            estado_datos = t("Conectado") if supabase_configurado else t("No configurado")
             st.markdown(
                 f'<div style="background:#0b1a33;border:1px solid #12305a;'
                 f'border-radius:8px;padding:14px;color:#e6edf7">'
-                f'<div style="color:#9bb0c8;font-size:12px">Historial de análisis</div>'
+                f'<div style="color:#9bb0c8;font-size:12px">{t("Historial de análisis")}</div>'
                 f'<div style="font-weight:700;margin-top:7px">Supabase: {estado_datos}</div></div>',
                 unsafe_allow_html=True,
             )

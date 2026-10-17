@@ -18,7 +18,7 @@ from datetime import datetime
 from io import BytesIO
 from xml.sax.saxutils import escape as _xml
 
-from models.i18n import es_o_en
+from models.i18n import es_o_en, t
 from models.risk_score import SEVERITY_ORDER, classification, normalize_severity
 
 # --------------------------------------------------------------------- catálogos
@@ -189,16 +189,16 @@ def construir_informe(registros: list, obtener_detalle=None) -> dict:
             hallazgos.append({
                 "objetivo": objetivo,
                 "modulo": modulo,
-                "hallazgo": _texto(
+                "hallazgo": t(_texto(
                     hallazgo.get("descripcion") or hallazgo.get("tipo") or hallazgo.get("nombre"),
                     _e("Hallazgo sin descripción", "Unnamed finding"),
-                ),
+                )),
                 "severidad": severidad,
                 "owasp": _texto(hallazgo.get("owasp"), "—"),
                 "cvss": _numero(hallazgo.get("cvss")),
-                "remediacion": _texto(
+                "remediacion": t(_texto(
                     hallazgo.get("remediacion") or hallazgo.get("recomendacion")
-                ),
+                )),
                 "evidencia": _texto(hallazgo.get("evidencia")),
                 "tipo": _texto(hallazgo.get("tipo")),
             })

@@ -113,7 +113,7 @@ def _mostrar_hallazgos_detallados(metricas: dict):
             "union-based": "UNION-Based",
         }.get(h.get("tipo", ""), h.get("tipo", ""))
 
-        with st.expander(t("Hallazgo #{}").format(i) + f" — {tipo_label} en `{h.get('parametro', '')}` · {nivel} · CVSS {cvss}", expanded=False):
+        with st.expander(t("Hallazgo #{}").format(i) + f" — {tipo_label}" + es_o_en(" en ", " in ") + f"`{h.get('parametro', '')}` · {nivel} · CVSS {cvss}", expanded=False):
             col1, col2 = st.columns(2)
             with col1:
                 st.markdown(f"**{t('Parámetro')}:** `{h.get('parametro', '')}`")

@@ -7,6 +7,7 @@ idioma es "en", devuelve la versión inglés; si no, devuelve el texto original
 """
 
 import re
+import unicodedata
 
 import streamlit as st
 
@@ -678,6 +679,180 @@ TRADUCCIONES = {
     "Nivel de detalle": "Detail level",
     "🟢 Básicas (recomendado)": "🟢 Basic (recommended)",
     "🔧 Avanzadas": "🔧 Advanced",
+
+    # --------------------------------------------------- shell y navegación
+    "Dashboard": "Dashboard",
+    "Auditorías": "Audits",
+    "Vulnerabilidades": "Vulnerabilities",
+    "Activos": "Assets",
+    "Monitoreo": "Monitoring",
+    "Reportes": "Reports",
+    "Configuración": "Settings",
+    "Plataforma de Ciberseguridad": "Cybersecurity Platform",
+    "Tema visual": "Visual theme",
+    "Sistema": "System",
+    "Claro": "Light",
+    "Oscuro": "Dark",
+    "Sesión local": "Local session",
+    "Abrir configuración de perfil": "Open profile settings",
+    "Modos de análisis": "Analysis modes",
+    "Corporativa Matheus | Ciberseguridad": "Corporativa Matheus | Cybersecurity",
+    "🔒 Ve a Configuración para confirmar la autorización y ajustar los permisos de red.":
+    "🔒 Go to Settings to confirm authorization and adjust network permissions.",
+    "Prueba de Carga": "Load Test",
+    "Escaneo de Puertos": "Port Scan",
+    "▶ Ejecutar análisis": "▶ Run analysis",
+    "No configurado": "Not configured",
+    "Configurado": "Configured",
+    "Conectado": "Connected",
+    "Estado actual": "Current status",
+    "Otro": "Other",
+    "Análisis": "Assessments",
+    "Análisis: %{y}": "Assessments: %{y}",
+    "Todavía no hay fechas de análisis para mostrar.":
+    "There are no assessment dates to show yet.",
+    "La distribución aparecerá cuando haya análisis registrados.":
+    "The distribution will appear once assessments are saved.",
+    "Corporativa Matheus": "Corporativa Matheus",
+    "Modo": "Mode",
+    "Actividad por día": "Activity by day",
+    "Completado": "Completed",
+    "Falta el nombre de usuario.": "Username is required.",
+    "Certificado no confiable: {}": "Untrusted certificate: {}",
+    "Error SSL: {}": "SSL error: {}",
+    "No se pudo conectar: {}": "Could not connect: {}",
+    "Midiendo latencia base...": "Measuring baseline latency...",
+    "Nivel {}/{}: concurrencia={}": "Level {}/{}: concurrency={}",
+    "OWASP + Otros": "OWASP + Others",
+    "Pentesting ético | CVSS | PGI | OWASP": "Ethical pentesting | CVSS | PGI | OWASP",
+    "Score": "Score",
+    "Supabase no configurado": "Supabase not configured",
+    "hallazgos": "findings",
+
+    # --------------------------------------------------------- dashboard
+    "Resumen de seguridad": "Security summary",
+    "Actividad reciente y resultados registrados": "Recent activity and recorded results",
+    "Análisis recientes": "Recent assessments",
+    "Hasta 10 registros": "Up to 10 records",
+    "Hallazgos registrados": "Recorded findings",
+    "Objetivos analizados": "Assessed targets",
+    "Módulos con actividad": "Active modules",
+    "Evolución de actividad": "Activity trend",
+    "Análisis guardados por fecha": "Saved assessments by date",
+    "Análisis por día": "Assessments per day",
+    "Actividad por módulo": "Activity by module",
+    "Distribución de análisis guardados": "Saved assessment distribution",
+    "análisis": "assessments",
+    "Historial de auditorías": "Audit history",
+    "Últimos análisis guardados": "Latest saved assessments",
+    "No hay análisis guardados todavía. El historial aparecerá aquí al completar un análisis.":
+    "No assessments saved yet. The history will appear here after you complete an assessment.",
+    "Almacenamiento de historial: Supabase {}.": "Assessment history storage: Supabase {}.",
+    "Datos disponibles del historial de análisis": "Data available from the assessment history",
+    "No hay vulnerabilidades guardadas en los análisis recientes.":
+    "No vulnerabilities saved in recent assessments.",
+    "Objetivos registrados": "Registered targets",
+    "Registros revisados": "Records reviewed",
+    "Los objetivos aparecerán aquí después de guardar un análisis.":
+    "Targets will appear here after you save an assessment.",
+    "No hay actividad de análisis registrada todavía.":
+    "No assessment activity recorded yet.",
+    "Análisis registrados": "Assessments recorded",
+    "Objetivos distintos": "Distinct targets",
+    "Hallazgos totales": "Total findings",
+    "Última actividad": "Last activity",
+    "Análisis guardados": "Saved assessments",
+    "Análisis por fecha": "Assessments by date",
+    "Sin fechas disponibles.": "No dates available.",
+    "Detalle de la actividad registrada": "Recorded activity detail",
+    "Últimos análisis": "Latest assessments",
+    "La actividad refleja análisis guardados; no es monitoreo en tiempo real.":
+    "Activity reflects saved assessments; it is not real-time monitoring.",
+    "No hay análisis guardados para generar un reporte.":
+    "No saved assessments to generate a report.",
+    "Autorización": "Authorization",
+    "Condiciones previas de análisis": "Prerequisites for assessments",
+    "Red y auditoría": "Network and audit",
+    "Preferencias de esta sesión": "Preferences for this session",
+    "Parámetros del escáner de inyección": "Injection scanner parameters",
+    "Apariencia y almacenamiento": "Appearance and storage",
+    "Historial de análisis": "Assessment history",
+    "Informe ejecutivo, plan de acción y exportaciones":
+    "Executive report, action plan and exports",
+    "Selecciona una sección del menú.": "Select a section from the menu.",
+    "Módulo": "Module",
+    "Hallazgo": "Finding",
+    "Severidad": "Severity",
+    "Nivel": "Level",
+    "Fecha": "Date",
+    "Último análisis": "Latest assessment",
+    "Puntuación": "Score",
+
+    # ------------------------------------------------------------- auditoría
+    "Sin auditorías registradas": "No audits recorded",
+    "Pendiente": "Pending",
+    "Completo": "Full",
+    "Objetivo de auditoría": "Audit target",
+    "Ingresa un objetivo en la barra superior": "Enter a target in the top bar",
+    "Tipo de análisis": "Assessment type",
+    "Última auditoría": "Last audit",
+    "Herramientas disponibles para el objetivo": "Tools available for the target",
+    "Evalúa latencia, capacidad y comportamiento bajo concurrencia.":
+    "Evaluates latency, capacity and behavior under concurrency.",
+    "Simulación de usuarios y carga": "User and load simulation",
+    "Rastrea el sitio y analiza exposición, configuración y phishing.":
+    "Crawls the site and analyzes exposure, configuration and phishing.",
+    "Rastreo, detección y recomendaciones": "Crawling, detection and recommendations",
+    "Detecta puertos TCP abiertos y servicios expuestos.":
+    "Detects open TCP ports and exposed services.",
+    "Identificación de servicios y puertos": "Service and port identification",
+    "Configurar →": "Configure →",
+    "Fecha no disponible": "Date not available",
+    "Objetivo no disponible": "Target not available",
+    "Modo de análisis": "Assessment mode",
+    "de 100": "of 100",
+    "EXPOSICIÓN": "EXPOSURE",
+    "Críticas": "Critical",
+    "Altas": "High",
+    "Medias": "Medium",
+    "Bajas": "Low",
+    "Informativas": "Informational",
+    "Matriz de inspección técnica": "Technical inspection matrix",
+    "Hallazgos detectados y acciones sugeridas": "Detected findings and suggested actions",
+    "Control": "Control",
+    "Detectado": "Detected",
+    "Impacto": "Impact",
+    "Acción": "Action",
+    "Detalle y remediación": "Detail and remediation",
+    "Evidencia técnica agrupada por severidad OWASP":
+    "Technical evidence grouped by OWASP severity",
+    "Análisis profundo": "Deep analysis",
+    "Páginas rastreadas:": "Pages crawled:",
+    "Hallazgos:": "Findings:",
+    "Detección de phishing (ML)": "Phishing detection (ML)",
+    "Resultado:": "Result:",
+    "Score de riesgo:": "Risk score:",
+    "Confianza del modelo:": "Model confidence:",
+    "Tecnologías detectadas:": "Detected technologies:",
+    "Páginas rastreadas ({})": "Pages crawled ({})",
+    "Distribución de hallazgos": "Findings distribution",
+    "Riesgo alto": "High risk",
+    "Riesgo medio": "Medium risk",
+    "Riesgo bajo": "Low risk",
+
+    # ----------------------------------------------------------- prueba carga
+    "Conclusión": "Conclusion",
+    "Prueba completada": "Test completed",
+    "El sistema mantuvo un buen rendimiento durante la prueba.":
+    "The system maintained good performance during the test.",
+    "El sistema mostró señales de degradación durante la prueba.":
+    "The system showed signs of degradation during the test.",
+    "El sistema mantuvo un rendimiento aceptable durante la prueba.":
+    "The system maintained acceptable performance during the test.",
+    "No se detectaron errores críticos.": "No critical errors were detected.",
+    "Se detectaron errores durante la prueba.": "Errors were detected during the test.",
+    "Ver detalles →": "View details →",
+    "Base": "Baseline",
 }
 
 
@@ -763,6 +938,16 @@ COLUMNAS_EN = {
     "tecnologias": "Technologies", "cabeceras": "Headers", "formularios": "Forms",
     "recursos": "Resources", "titulo": "Title", "estado_general": "Overall status",
     "vulnerable": "Vulnerable", "resumen": "Summary", "diagnostico": "Diagnosis",
+    # dashboard / informes
+    "fecha": "Date", "objetivo": "Target", "modulo": "Module",
+    "hallazgo": "Finding", "severidad": "Severity", "nivel": "Level",
+    "control": "Control", "estado": "Status", "impacto": "Impact",
+    "accion": "Action", "owasp": "OWASP", "veces": "Times",
+    "analisis": "Assessments", "objetivos": "Targets", "modulos": "Modules",
+    "puntuacion": "Score", "porcentaje": "Percentage", "ultimo_analisis": "Latest assessment",
+    "ultimo analisis": "Latest assessment", "analisis por dia": "Assessments per day",
+    "paginas_rastreadas": "Pages crawled", "tecnologias_detectadas": "Detected technologies",
+    "errores_5xx": "5xx errors", "errores_otros": "Other errors",
 }
 
 # Valores de celda que son palabras en español (coincidencia exacta).
@@ -777,19 +962,41 @@ VALORES_EN = {
     "bajo": "Low", "informativa": "informational", "informativo": "informational",
     "Inyección SQL": "SQL Injection", "Auditoría": "Audit", "Carga": "Load",
     "Puertos": "Ports", " phishing": "phishing", "phishing": "phishing",
+    # Valores canónicos y estados que aparecen en tablas.
+    "CRÍTICO": "CRITICAL", "ALTO": "HIGH", "MEDIO": "MEDIUM",
+    "BAJO": "LOW", "INFO": "INFO", "Detectado": "Detected",
+    "Conectado": "Connected", "No configurado": "Not configured",
+    "Autorizado": "Authorized", "Completado": "Completed",
+    "Pendiente": "Pending", "Sin datos": "No data",
+    "ATENCIÓN": "ATTENTION", "RIESGO": "RISK", "BUENA": "GOOD",
+    "EXCELENTE": "EXCELLENT", "CRÍTICA": "CRITICAL",
+    "MODERADO": "MODERATE", "ELEVADO": "ELEVATED",
+    "Degradada": "Degraded", "Aceptable": "Acceptable",
 }
+
+
+def _normalizar_clave(texto) -> str:
+    """Minúsculas y sin acentos, para comparar cabeceras y valores."""
+    limpio = str(texto).strip().lower()
+    return "".join(
+        c for c in unicodedata.normalize("NFKD", limpio)
+        if not unicodedata.combining(c)
+    )
+
+
+_COLUMNAS_EN_NORM = {_normalizar_clave(k): v for k, v in COLUMNAS_EN.items()}
+_VALORES_EN_NORM = {_normalizar_clave(k): v for k, v in VALORES_EN.items()}
 
 
 def columna(nombre: str) -> str:
     """Traduce el nombre de una columna de tabla (p. ej. 'puerto' -> 'Port')."""
     if idioma() == "en":
-        return COLUMNAS_EN.get(str(nombre).strip(), nombre)
+        return _COLUMNAS_EN_NORM.get(_normalizar_clave(nombre), str(nombre))
     return nombre
 
 
 def valor(texto) -> str:
     """Traduce valores de celda que sean palabras conocidas en español."""
-    texto = str(texto)
     if idioma() == "en":
-        return VALORES_EN.get(texto.strip(), texto)
-    return texto
+        return _VALORES_EN_NORM.get(_normalizar_clave(texto), str(texto))
+    return str(texto)

@@ -61,11 +61,11 @@ def _check_https(dominio: str, puerto: int = 443) -> Dict:
                     "tls_version": getattr(ssock, "version", lambda: "desconocida")(),
                 }
     except ssl.SSLCertVerificationError as e:
-        return {"valido": False, "error": f"Certificado no confiable: {str(e)[:100]}"}
+        return {"valido": False, "error": t("Certificado no confiable: {}").format(str(e)[:100])}
     except ssl.SSLError as e:
-        return {"valido": False, "error": f"Error SSL: {str(e)[:100]}"}
+        return {"valido": False, "error": t("Error SSL: {}").format(str(e)[:100])}
     except Exception as e:
-        return {"valido": False, "error": f"No se pudo conectar: {str(e)[:100]}"}
+        return {"valido": False, "error": t("No se pudo conectar: {}").format(str(e)[:100])}
 
 
 def analizar_profundamente(url: str) -> Dict:
@@ -136,8 +136,8 @@ def analizar_profundamente(url: str) -> Dict:
             if cabecera.lower() not in headers:
                 hallazgos.append({
                     "tipo": "cabecera_faltante", "descripcion": t("Cabecera de seguridad faltante: {}").format(cabecera),
-                    "detalle": info["explicacion"],
-                    "severidad": info["nivel"], "remediacion": info["remediacion"],
+                    "detalle": t(info["explicacion"]),
+                    "severidad": info["nivel"], "remediacion": t(info["remediacion"]),
                     "owasp": info["owasp"],
                 })
                 extra = 20 if info["nivel"] == "alta" else (12 if info["nivel"] == "media" else 5)

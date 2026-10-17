@@ -80,14 +80,14 @@ def recomendacion(hallazgo: dict, cvss: float) -> str:
               "({}/10). Aplicar parche inmediato: usar consultas parametrizadas "
               "(prepared statements), validar entradas con whitelist, y desplegar WAF. "
               "No aplique correcciones temporales sin análisis profundo.")
-            .format(parametro, severidad.lower(), cvss)
+            .format(parametro, t(severidad).lower(), cvss)
         )
     elif cvss >= 6.0:
         return (
             t("⚠️ [ALTA] Inyección SQL {} en '{}' (CVSS {}/10). "
               "Priorizar en el ciclo de parches actual: migra a queries parametrizadas, "
               "aplica escape de entradas y monitorea logs de acceso.")
-            .format(severidad.lower(), parametro, cvss)
+            .format(t(severidad).lower(), parametro, cvss)
         )
     elif cvss >= 3.0:
         return (
@@ -183,7 +183,7 @@ def _generar_explicacion_basica(hallazgo: dict, cvss: float) -> str:
         t("El parámetro '{}' presenta una posible inyección SQL ({}) "
           "con nivel de riesgo {} (CVSS {}/10). "
           "Se recomienda aplicar consultas parametrizadas y validación de entradas.")
-        .format(param, tipo, nivel, cvss)
+        .format(param, tipo, t(nivel), cvss)
     )
 
 

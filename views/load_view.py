@@ -52,7 +52,7 @@ def mostrar(resultado: dict):
                 f'<div style="text-align:center;margin-top:8px">'
                 f'<span style="display:inline-block;background:{fondo_badge};'
                 f'color:{texto_badge};padding:6px 16px;border-radius:999px;'
-                f'font-weight:600">{salud}</span></div>',
+                f'font-weight:600">{t(salud)}</span></div>',
                 unsafe_allow_html=True,
             )
 
@@ -78,29 +78,39 @@ def mostrar(resultado: dict):
 
     salud = metricas["salud_global"]
     if salud in ("Excelente", "Buena"):
-        resumen_salud = "El sistema mantuvo un buen rendimiento durante la prueba."
+        resumen_salud = es_o_en(
+            "El sistema mantuvo un buen rendimiento durante la prueba.",
+            "The system maintained good performance during the test.",
+        )
     elif salud in ("Degradada", "Crítica"):
-        resumen_salud = "El sistema mostró señales de degradación durante la prueba."
+        resumen_salud = es_o_en(
+            "El sistema mostró señales de degradación durante la prueba.",
+            "The system showed signs of degradation during the test.",
+        )
     else:
-        resumen_salud = "El sistema mantuvo un rendimiento aceptable durante la prueba."
-    resumen_errores = (
-        "No se detectaron errores críticos."
-        if metricas["tasa_error_max"] < 5
-        else "Se detectaron errores durante la prueba."
+        resumen_salud = es_o_en(
+            "El sistema mantuvo un rendimiento aceptable durante la prueba.",
+            "The system maintained acceptable performance during the test.",
+        )
+    resumen_errores = es_o_en(
+        "No se detectaron errores críticos." if metricas["tasa_error_max"] < 5
+        else "Se detectaron errores durante la prueba.",
+        "No critical errors were detected." if metricas["tasa_error_max"] < 5
+        else "Errors were detected during the test.",
     )
     st.markdown(
         '<div style="background:#0b1a33;border:1px solid #12305a;'
         'border-radius:14px;padding:18px 20px;color:#e6edf7">'
         '<div style="font-size:18px;font-weight:700;margin-bottom:10px">'
-        '<span style="color:#22d3ee">✦</span> Conclusión</div>'
+        f'<span style="color:#22d3ee">✦</span> {t("Conclusión")}</div>'
         '<ul style="margin:0;padding-left:22px">'
-        '<li>✅ Prueba completada</li>'
+        f'<li>✅ {t("Prueba completada")}</li>'
         f'<li>{resumen_salud}</li>'
         f'<li>{resumen_errores}</li>'
         '</ul></div>',
         unsafe_allow_html=True,
     )
-    st.button("Ver detalles →", key="load_view_details_placeholder")
+    st.button(t("Ver detalles →"), key="load_view_details_placeholder")
 
     if metricas["recomendaciones"]:
         section_header(es_o_en("Recomendaciones de rendimiento", "Performance recommendations"),

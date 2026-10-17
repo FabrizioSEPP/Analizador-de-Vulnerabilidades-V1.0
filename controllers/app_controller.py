@@ -120,14 +120,14 @@ def run():
                 '<div class="sidebar-profile-head">'
                 '<div class="sidebar-profile-avatar">👤</div>'
                 '<div><div class="sidebar-profile-name">'
-                f'{escape(user or "Usuario")}'
-                '</div><div class="sidebar-profile-role">Sesión local</div></div></div>'
+                f'{escape(user or t("Usuario"))}'
+                f'</div><div class="sidebar-profile-role">{t("Sesión local")}</div></div></div>'
                 f'<div class="sidebar-profile-database">'
                 f'<span class="sidebar-profile-dot {"online" if supabase_configurado else "offline"}"></span>'
-                f'{"Supabase conectado" if supabase_configurado else "Supabase no configurado"}</div>',
+                f'{t("Supabase conectado") if supabase_configurado else t("Supabase no configurado")}</div>',
                 unsafe_allow_html=True,
             )
-            if st.button("Cerrar Sesión", use_container_width=True, key="logout_btn"):
+            if st.button(t("Cerrar Sesión"), use_container_width=True, key="logout_btn"):
                 logout()
 
     with st.container(key="main-toolbar"):
@@ -145,7 +145,7 @@ def run():
         with toolbar_columns[3]:
             if st.button(
                 " ", icon=":material/account_circle:",
-                help="Abrir configuración de perfil", key="toolbar_profile",
+                help=t("Abrir configuración de perfil"), key="toolbar_profile",
                 use_container_width=True,
             ):
                 st.session_state["app_view"] = "settings"

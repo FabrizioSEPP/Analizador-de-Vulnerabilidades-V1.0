@@ -11,7 +11,7 @@ from models.http_utils import (
     hacer_peticion, construir_url, construir_url_params, es_bloqueo,
 )
 from models.discovery import descubrir_objetivos
-from models.i18n import t as _t
+from models.i18n import t as _t, es_o_en as _e
 
 
 SQLI_PAYLOADS_ERROR = [
@@ -244,7 +244,8 @@ class SQLiModel:
     def analizar(self, url: str, callback=None) -> dict:
         self._inicio = time.perf_counter()
         if callback:
-            callback(0.02, "Descubriendo parámetros en la página...")
+            callback(0.02, _e("Descubriendo parámetros en la página...",
+                              "Discovering parameters on the page..."))
 
         objetivos, info = descubrir_objetivos(
             url, probar_cabeceras=self.probar_cabeceras, probar_json=self.probar_json,
@@ -308,7 +309,7 @@ class SQLiModel:
                 break
 
         if callback:
-            callback(1.0, "Análisis completo")
+            callback(1.0, _e("Análisis completo", "Analysis complete"))
 
         if self.segundo_orden and not self._bloqueado:
             so = self.analizar_segundo_orden(url)
@@ -359,7 +360,8 @@ class SQLiModel:
         if self._inicio is None:
             self._inicio = time.perf_counter()
         if callback:
-            callback(0.05, "Segundo orden: buscando formularios de escritura...")
+            callback(0.05, _e("Segundo orden: buscando formularios de escritura...",
+                              "Second-order: looking for write forms..."))
         objetivos, _ = descubrir_objetivos(
             url, probar_cabeceras=False, probar_json=self.probar_json,
             probar_apis=self.probar_apis,
@@ -378,7 +380,8 @@ class SQLiModel:
 
         paginas = listar_paginas(url, limite=10)
         if callback:
-            callback(0.2, f"Línea base sobre {len(paginas)} página(s)...")
+            callback(0.2, _e(f"Línea base sobre {len(paginas)} página(s)...",
+                             f"Baseline over {len(paginas)} page(s)..."))
         firmas_base = {}
         for p in paginas:
             resp, _, _ = hacer_peticion(p, headers=self.headers, pausa=self.pausa)
@@ -390,7 +393,10 @@ class SQLiModel:
             if self._bloqueado:
                 break
             if callback:
-                callback(0.3 + idx * 0.35, f"Segundo orden: inyectando y revisando ({idx+1}/{len(payloads)})...")
+                callback(0.3 + idx * 0.35, _e(
+                    f"Segundo orden: inyectando y revisando ({idx+1}/{len(payloads)})...",
+                    f"Second-order: injecting and checking ({idx+1}/{len(payloads)})...",
+                ))
             for o in formularios:
                 self._enviar(o, payload)
                 # Revisar DESPUÉS DE CADA inyección (una inyección posterior podría
@@ -419,14 +425,15 @@ class SQLiModel:
                         hallazgo["nivel_riesgo"] = ""
                         hallazgo["explicacion"] = ""
                         if callback:
-                            callback(1.0, "Segundo orden: hallazgo encontrado")
+                            callback(1.0, _e("Segundo orden: hallazgo encontrado",
+                                             "Second-order: finding detected"))
                         return {"url": url, "vulnerable": True, "hallazgos": [hallazgo],
                                 "tipo": "segundo-orden",
                                 "detalle": _t("Posible SQLi de segundo orden: una inyección almacenada "
                                               "provoca un error SQL en otra página.")}
 
         if callback:
-            callback(1.0, "Segundo orden completado")
+            callback(1.0, _e("Segundo orden completado", "Second-order completed"))
         return {"url": url, "vulnerable": False, "hallazgos": [], "tipo": "segundo-orden",
                 "detalle": _t("No se detectó SQLi de segundo orden (heurístico).")}
 
@@ -464,7 +471,7 @@ class SQLiModel:
 
         for i, payload in enumerate(payloads):
             if sub_callback:
-                sub_callback(i / total, f"  Probando payload {i+1}/{total}: {payload[:30]}...")
+                sub_callback(i / total, _e(f"  Probando payload {i+1}/{total}: {payload[:30]}...", f"  Testing payload {i+1}/{total}: {payload[:30]}..."))
 
             response, _, error = self._enviar(objetivo, payload)
 
@@ -488,7 +495,7 @@ class SQLiModel:
                 firmas_encontradas.update(nuevas)
 
         if sub_callback:
-            sub_callback(1.0, "  Error-based completado")
+            sub_callback(1.0, _e("  Error-based completado", "  Error-based completed"))
 
         if not firmas_encontradas:
             return []
@@ -607,12 +614,12 @@ class SQLiModel:
             resp, _, err = self._enviar(objetivo, objetivo.get("valor_base", "1"))
             if err or resp is None:
                 if sub_callback:
-                    sub_callback(1.0, "  Sin respuesta base válida")
+                    sub_callback(1.0, _e("  Sin respuesta base válida", "  No valid baseline response"))
                 return []
             if resp.status_code >= 500:
                 self._nota(_t("boolean: la página base devuelve 5xx (técnica omitida)."))
                 if sub_callback:
-                    sub_callback(1.0, "  Página base con error del servidor")
+                    sub_callback(1.0, _e("  Página base con error del servidor", "  Baseline page returned a server error"))
                 return []
             status_base = resp.status_code
             muestras.append(resp)
@@ -620,7 +627,7 @@ class SQLiModel:
         if len(muestras[0].text) < 50:
             self._nota(_t("boolean: respuesta base muy pequeña (técnica omitida)."))
             if sub_callback:
-                sub_callback(1.0, "  Respuesta base demasiado pequeña para boolean-based")
+                sub_callback(1.0, _e("  Respuesta base demasiado pequeña para boolean-based", "  Baseline response too small for boolean-based"))
             return []
 
         base_norm = _normalizar_volatil(muestras[0].text)
@@ -631,7 +638,7 @@ class SQLiModel:
             self._nota(_t("boolean: página demasiado volátil (ruido {}; técnica omitida). "
                        "Si sospechas inyección, baja la exigencia de ruido o revisa manualmente.").format(f"{ruido:.2f}"))
             if sub_callback:
-                sub_callback(1.0, f"  Página demasiado volátil (ruido {ruido:.2f})")
+                sub_callback(1.0, _e(f"  Página demasiado volátil (ruido {ruido:.2f})", f"  Page too volatile (noise {ruido:.2f})"))
             return []
 
         indicadores = {"status": 0, "tamano": 0, "similitud": 0}
@@ -645,7 +652,7 @@ class SQLiModel:
                 # Rendimiento: si tras N pares no hay señal (< 3 puntos) se corta.
                 if pares >= self.max_pares_boolean and sum(indicadores.values()) < 3:
                     if sub_callback:
-                        sub_callback(1.0, "  Boolean-based: sin señal suficiente (cortado)")
+                        sub_callback(1.0, _e("  Boolean-based: sin señal suficiente (cortado)", "  Boolean-based: not enough signal (aborted)"))
                     return []
                 pares += 1
                 res = self._par_boolean(objetivo, payload_true, payload_false, status_base, ruido)
@@ -664,7 +671,7 @@ class SQLiModel:
                 break
 
         if sub_callback:
-            sub_callback(1.0, "  Boolean-based completado")
+            sub_callback(1.0, _e("  Boolean-based completado", "  Boolean-based completed"))
 
         puntos = sum(indicadores.values())
         if puntos < 3:
@@ -791,7 +798,7 @@ class SQLiModel:
         total = 10
         for n in range(1, total + 1):
             if sub_callback:
-                sub_callback(n / total, f"  UNION SELECT con {n} columna(s)...")
+                sub_callback(n / total, _e(f"  UNION SELECT con {n} columna(s)...", f"  UNION SELECT with {n} column(s)..."))
             payload = f"' UNION SELECT {','.join(['NULL'] * n)}-- "
             resp, _, err = self._enviar(objetivo, payload)
             if self._bloqueado:
@@ -842,7 +849,7 @@ class SQLiModel:
             return [hallazgo]
 
         if sub_callback:
-            sub_callback(1.0, "  UNION-based completado")
+            sub_callback(1.0, _e("  UNION-based completado", "  UNION-based completed"))
         return []
 
     def _medir_retardo(self, objetivo: dict, payload: str, delay: float,
@@ -883,7 +890,7 @@ class SQLiModel:
             )
             if error_base:
                 if sub_callback:
-                    sub_callback(1.0, "  Sin respuesta base válida")
+                    sub_callback(1.0, _e("  Sin respuesta base válida", "  No valid baseline response"))
                 return []
             tiempos_base.append(tiempo_base)
 
@@ -894,7 +901,7 @@ class SQLiModel:
         total = len(SQLI_PAYLOADS_TIME)
         for i, (motor, payload, delay) in enumerate(SQLI_PAYLOADS_TIME):
             if sub_callback:
-                sub_callback(i / total, f"  Probando {motor} (delay {delay}s)...")
+                sub_callback(i / total, _e(f"  Probando {motor} (delay {delay}s)...", f"  Testing {motor} (delay {delay}s)..."))
 
             m = self._medir_retardo(objetivo, payload, delay, tiempo_base_mediana)
             if not m:
@@ -925,7 +932,7 @@ class SQLiModel:
                 confidence = min(100, round(30 + consistencia * 50 + (diferencia / delay) * 10, 1))
 
             if sub_callback:
-                sub_callback(1.0, f"  Time-based: hallazgo en {motor}")
+                sub_callback(1.0, _e(f"  Time-based: hallazgo en {motor}", f"  Time-based: finding on {motor}"))
             hallazgo = {
                 "tipo": "time-based blind", "parametro": objetivo["param"],
                 "metodo": objetivo["method"], "url_objetivo": objetivo["url"],
@@ -947,7 +954,7 @@ class SQLiModel:
             return [hallazgo]
 
         if sub_callback:
-            sub_callback(1.0, "  Time-based completado")
+            sub_callback(1.0, _e("  Time-based completado", "  Time-based completed"))
         return []
 
     def _calcular_confianza_error(self, firmas: list, status_code: int) -> int:

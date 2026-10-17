@@ -3,12 +3,16 @@ from models.i18n import t, es_o_en
 
 def get_remediation(rem_key: str) -> dict:
     key = rem_key.lower().replace(" ", "_").replace("-", "_")
-    return REMEDIATIONS.get(key, REMEDIATIONS.get("rate_limit", {
+    base = REMEDIATIONS.get(key, REMEDIATIONS.get("rate_limit", {
         "what": t("Revisar la configuracion del control indicado."),
         "where": t("Segun el control afectado."),
         "example": t("Consultar documentacion del servidor/aplicacion."),
         "verify": t("Re-ejecutar auditoria o verificar manualmente."),
     }))
+    # Las cadenas del catálogo se congelaron al importar el módulo (idioma
+    # inicial). Se traducen aquí, en el momento de mostrarlas.
+    return {clave: t(valor) if isinstance(valor, str) else valor
+            for clave, valor in base.items()}
 
 
 REMEDIATIONS = {

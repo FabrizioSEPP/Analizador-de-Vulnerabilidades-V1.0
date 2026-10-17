@@ -3,6 +3,7 @@ from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import urlparse
 
 from models.http_utils import es_objetivo_privado
+from models.i18n import es_o_en
 
 
 def extraer_host(url_o_dominio: str) -> str:
@@ -147,7 +148,106 @@ CATALOGO = {
 }
 
 ETIQUETA_NIVEL = {"alto": "Riesgo alto", "medio": "Riesgo medio", "bajo": "Riesgo bajo"}
+ETIQUETA_NIVEL_EN = {"alto": "High risk", "medio": "Medium risk", "bajo": "Low risk"}
 EMOJI_NIVEL = {"alto": "🔴", "medio": "🟡", "bajo": "🟢"}
+
+
+def _nivel_texto(nivel: str) -> str:
+    return es_o_en(ETIQUETA_NIVEL.get(nivel, nivel), ETIQUETA_NIVEL_EN.get(nivel, nivel))
+
+# Traducción del catálogo anterior. Se guarda aparte para no duplicar la
+# lógica de clasificación y poder mostrar el detalle en el idioma activo.
+CATALOGO_EN = {
+    21: {"nombre": "Unencrypted file transfer (FTP)",
+         "amenaza": "Sends username and password in plain text; they can be intercepted on the network.",
+         "recomendaciones": ["Migrate to SFTP or FTPS.", "Close the port if it is not used.", "Restrict by IP if strictly necessary."]},
+    23: {"nombre": "Unencrypted Telnet",
+         "amenaza": "Obsolete protocol with no encryption at all.",
+         "recomendaciones": ["Disable Telnet and use SSH.", "Close port 23."]},
+    445: {"nombre": "Windows file sharing (SMB)",
+          "amenaza": "Entry vector for known ransomware attacks (e.g. WannaCry).",
+          "recomendaciones": ["Block port 445 from the internet.", "Allow SMB only on the internal network or VPN.", "Keep the system patched."]},
+    1433: {"nombre": "Exposed SQL Server database",
+           "amenaza": "Allows direct brute-force attempts and theft of business data.",
+           "recomendaciones": ["Close the port to the public.", "Accept connections only from the app server.", "Disable default accounts."]},
+    3306: {"nombre": "Exposed MySQL database",
+           "amenaza": "Direct access to business data from anywhere on the internet.",
+           "recomendaciones": ["bind-address = 127.0.0.1", "Block port 3306 in the firewall.", "Allow only the app server IP."]},
+    5432: {"nombre": "Exposed PostgreSQL database",
+           "amenaza": "Same risk as MySQL: direct access to business data.",
+           "recomendaciones": ["Restrict listen_addresses to localhost.", "Adjust pg_hba.conf.", "Close port 5432 to the public."]},
+    3389: {"nombre": "Exposed Remote Desktop (RDP)",
+           "amenaza": "One of the most targeted ports for automated brute force.",
+           "recomendaciones": ["Do not expose RDP to the internet; use a VPN.", "Enable two-factor authentication.", "Block IPs after several failed attempts."]},
+    5900: {"nombre": "Exposed VNC remote control",
+           "amenaza": "Many installations are left without a password, giving full control of the machine.",
+           "recomendaciones": ["Close the port and use a VPN.", "Enforce a strong password and encryption."]},
+    6379: {"nombre": "Exposed Redis cache",
+           "amenaza": "Redis has no authentication by default: free access to the data.",
+           "recomendaciones": ["Listen only on localhost.", "Enable requirepass.", "Block port 6379."]},
+    27017: {"nombre": "Exposed MongoDB database",
+            "amenaza": "Cause of several massive leaks from instances without authentication.",
+            "recomendaciones": ["Enable authentication.", "Restrict bindIp to the internal network.", "Close port 27017."]},
+    22: {"nombre": "Remote access SSH",
+         "amenaza": "Safe if properly configured, but it receives constant brute-force attempts.",
+         "recomendaciones": ["Use SSH keys only, not passwords.", "Block direct root login.", "Install fail2ban.", "Restrict by IP if possible."]},
+    25: {"nombre": "Outgoing mail (SMTP)",
+         "amenaza": "If misconfigured, it can be used to send spam in the company's name.",
+         "recomendaciones": ["Verify that it is not an open relay.", "Configure SPF, DKIM and DMARC."]},
+    53: {"nombre": "DNS server",
+         "amenaza": "A DNS server with open recursion can be used to amplify DDoS attacks against third parties.",
+         "recomendaciones": ["Disable open recursion.", "Limit queries to authorized clients."]},
+    110: {"nombre": "Unencrypted incoming mail POP3",
+          "amenaza": "Transmits email credentials in plain text.",
+          "recomendaciones": ["Use POP3S (995).", "Close port 110."]},
+    143: {"nombre": "Unencrypted incoming mail IMAP",
+          "amenaza": "Transmits email credentials in plain text.",
+          "recomendaciones": ["Use IMAPS (993).", "Close port 143."]},
+    8080: {"nombre": "Alternative web service (8080)",
+           "amenaza": "Often an administration panel or a forgotten test environment left open.",
+           "recomendaciones": ["Confirm what runs there.", "Close it or protect it with a password and VPN if it is internal."]},
+    80: {"nombre": "Web page (HTTP)",
+         "amenaza": "Normal, but unencrypted if it does not redirect to HTTPS.",
+         "recomendaciones": ["Redirect all traffic to HTTPS."]},
+    443: {"nombre": "Secure web page (HTTPS)",
+          "amenaza": "Expected and correct configuration.",
+          "recomendaciones": ["Keep the SSL certificate valid."]},
+    993: {"nombre": "Secure incoming mail (IMAPS)",
+          "amenaza": "Correct configuration.",
+          "recomendaciones": ["Keep the certificate valid."]},
+    995: {"nombre": "Secure incoming mail (POP3S)",
+          "amenaza": "Correct configuration.",
+          "recomendaciones": ["Keep the certificate valid."]},
+}
+
+
+def _ficha_inglesa(puerto: int, servicio: str = "") -> dict:
+    ficha = CATALOGO_EN.get(puerto)
+    if ficha:
+        return ficha
+    return {
+        "nombre": f"Unusual service on port {puerto}" + (f" ({servicio})" if servicio else ""),
+        "amenaza": "This is not a common web port; it may be an internal service unnecessarily reachable from outside.",
+        "recomendaciones": [
+            "Confirm with the technical team what service runs there.",
+            "Close it if it is not required for the site.",
+            "Restrict it to authorized IPs if needed.",
+        ],
+    }
+
+
+def localizar_amenazas(amenazas: list) -> list:
+    """Devuelve las fichas de puertos en el idioma activo."""
+    from models.i18n import idioma
+    if idioma() != "en":
+        return amenazas
+    salida = []
+    for amenaza in amenazas:
+        ficha = _ficha_inglesa(
+            int(amenaza.get("puerto", 0)), str(amenaza.get("servicio", "")),
+        )
+        salida.append({**amenaza, **ficha})
+    return salida
 
 
 def _clasificar_uno(p: dict) -> dict:
@@ -204,41 +304,44 @@ def resumen_por_nivel(amenazas: list) -> dict:
 
 def generar_reporte_markdown(resultado: dict, amenazas: list, ruta_md: str = None) -> str:
     from datetime import datetime
+    amenazas = localizar_amenazas(amenazas or [])
     nivel = nivel_general(amenazas)
     fecha = datetime.now().strftime("%d/%m/%Y %H:%M")
 
-    L = [f"# Informe de diagnóstico de seguridad web", ""]
-    L += [f"**Sitio analizado:** `{resultado['host']}`  ",
-          f"**Dirección IP:** `{resultado['ip']}`  ",
-          f"**Fecha:** {fecha}  ",
-          f"**Puertos abiertos:** {resultado['total_puertos']}  ",
-          f"**Puntuación de seguridad:** {puntuacion_seguridad(amenazas)}/100  ",
-          f"**Nivel de riesgo general:** {EMOJI_NIVEL[nivel]} **{ETIQUETA_NIVEL[nivel]}**",
-          "", "---", "", "## Resumen de puertos encontrados", ""]
+    L = [f"# {es_o_en('Informe de diagnóstico de seguridad web', 'Web security assessment report')}", ""]
+    L += [f"**{es_o_en('Sitio analizado', 'Analyzed site')}:** `{resultado['host']}`  ",
+          f"**{es_o_en('Dirección IP', 'IP address')}:** `{resultado['ip']}`  ",
+          f"**{es_o_en('Fecha', 'Date')}:** {fecha}  ",
+          f"**{es_o_en('Puertos abiertos', 'Open ports')}:** {resultado['total_puertos']}  ",
+          f"**{es_o_en('Puntuación de seguridad', 'Security score')}:** {puntuacion_seguridad(amenazas)}/100  ",
+          f"**{es_o_en('Nivel de riesgo general', 'Overall risk level')}:** {EMOJI_NIVEL[nivel]} **{_nivel_texto(nivel)}**",
+          "", "---", "", f"## {es_o_en('Resumen de puertos encontrados', 'Open port summary')}", ""]
 
     if not amenazas:
-        L.append("_No se encontraron puertos abiertos en el rango analizado._")
+        L.append(es_o_en("_No se encontraron puertos abiertos en el rango analizado._",
+                         "_No open ports were found in the scanned range._"))
     else:
-        L.append("| # | Puerto | Servicio | Nivel | Hallazgo |")
+        L.append(f"| # | {es_o_en('Puerto', 'Port')} | {es_o_en('Servicio', 'Service')} | "
+                 f"{es_o_en('Nivel', 'Level')} | {es_o_en('Hallazgo', 'Finding')} |")
         L.append("|---|--------|----------|-------|----------|")
         for i, a in enumerate(amenazas, 1):
             L.append(f"| {i} | {a['puerto']}/{a['protocolo']} | {a['servicio']} | "
-                      f"{EMOJI_NIVEL[a['nivel']]} {ETIQUETA_NIVEL[a['nivel']]} | {a['nombre']} |")
-        L += ["", "---", "", "## Detalle por puerto", ""]
+                      f"{EMOJI_NIVEL[a['nivel']]} {_nivel_texto(a['nivel'])} | {a['nombre']} |")
+        L += ["", "---", "", f"## {es_o_en('Detalle por puerto', 'Detail by port')}", ""]
         for i, a in enumerate(amenazas, 1):
-            L.append(f"### {i}. Puerto {a['puerto']}/{a['protocolo']} ({a['servicio']}) — {a['nombre']}")
+            L.append(f"### {i}. {es_o_en('Puerto', 'Port')} {a['puerto']}/{a['protocolo']} ({a['servicio']}) — {a['nombre']}")
             L.append("")
-            L.append(f"**Nivel:** {EMOJI_NIVEL[a['nivel']]} {ETIQUETA_NIVEL[a['nivel']]}")
+            L.append(f"**{es_o_en('Nivel', 'Level')}:** {EMOJI_NIVEL[a['nivel']]} {_nivel_texto(a['nivel'])}")
             L.append("")
-            L.append(f"**Amenaza:** {a['amenaza']}")
+            L.append(f"**{es_o_en('Amenaza', 'Threat')}:** {a['amenaza']}")
             L.append("")
-            L.append("**Recomendaciones:**")
+            L.append(f"**{es_o_en('Recomendaciones', 'Recommendations')}:**")
             L.append("")
             L += [f"- {r}" for r in a["recomendaciones"]]
             L.append("")
 
-    L += ["---", "", "_Informe generado automáticamente por el Analizador de Vulnerabilidades Web._  ",
-          "_Comparta este documento con el equipo responsable de la infraestructura._"]
+    L += ["---", "", f"_{es_o_en('Informe generado automáticamente por el Analizador de Vulnerabilidades Web.', 'Report automatically generated by the Web Vulnerability Analyzer.')}_  ",
+          f"_{es_o_en('Comparta este documento con el equipo responsable de la infraestructura.', 'Share this document with the infrastructure team.')}_"]
 
     contenido = "\n".join(L)
     if ruta_md:
@@ -268,6 +371,8 @@ def generar_reporte_pdf(resultado: dict, amenazas: list, ruta_pdf: str = None) -
         ListFlowable, ListItem, HRFlowable,
     )
 
+    amenazas = localizar_amenazas(amenazas or [])
+
     COLOR_NIVEL_HEXSTR = {"alto": "#C3352F", "medio": "#B8781F", "bajo": "#1E8E5A"}
     COLOR_NIVEL_HEX = {k: colors.HexColor(v) for k, v in COLOR_NIVEL_HEXSTR.items()}
     COLOR_FONDO_NIVEL = {"alto": colors.HexColor("#FBEAEA"), "medio": colors.HexColor("#FBF1E2"), "bajo": colors.HexColor("#E8F6EF")}
@@ -292,37 +397,39 @@ def generar_reporte_pdf(resultado: dict, amenazas: list, ruta_pdf: str = None) -
 
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=LETTER, leftMargin=2.2 * cm, rightMargin=2.2 * cm,
-                             topMargin=2 * cm, bottomMargin=2 * cm, title=f"Informe de seguridad — {resultado['host']}")
+                             topMargin=2 * cm, bottomMargin=2 * cm,
+                             title=f"{es_o_en('Informe de seguridad', 'Security report')} — {resultado['host']}")
     elementos = [
-        Paragraph("Informe de diagnóstico de seguridad web", est["titulo"]),
+        Paragraph(es_o_en("Informe de diagnóstico de seguridad web", "Web security assessment report"), est["titulo"]),
         Paragraph(f"{resultado['host']} &nbsp;·&nbsp; IP {resultado['ip']} &nbsp;·&nbsp; {fecha} "
-                   f"&nbsp;·&nbsp; {resultado['total_puertos']} puertos abiertos "
-                   f"&nbsp;·&nbsp; Puntuación {puntuacion_seguridad(amenazas)}/100", est["meta"]),
+                   f"&nbsp;·&nbsp; {resultado['total_puertos']} {es_o_en('puertos abiertos', 'open ports')} "
+                   f"&nbsp;·&nbsp; {es_o_en('Puntuación', 'Score')} {puntuacion_seguridad(amenazas)}/100", est["meta"]),
     ]
 
-    banner = Table([[Paragraph(f"Nivel de riesgo general: {ETIQUETA_NIVEL[nivel]}", est["banner_titulo"])]], colWidths=[doc.width])
+    banner = Table([[Paragraph(f"{es_o_en('Nivel de riesgo general', 'Overall risk level')}: {_nivel_texto(nivel)}", est["banner_titulo"])]], colWidths=[doc.width])
     banner.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, -1), COLOR_FONDO_NIVEL[nivel]),
         ("TEXTCOLOR", (0, 0), (-1, -1), COLOR_NIVEL_HEX[nivel]),
         ("LEFTPADDING", (0, 0), (-1, -1), 14), ("TOPPADDING", (0, 0), (-1, -1), 10), ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
         ("LINEBEFORE", (0, 0), (0, -1), 3, COLOR_NIVEL_HEX[nivel]),
     ]))
-    elementos += [banner, Spacer(1, 18), Paragraph("Hallazgos y recomendaciones", est["seccion"])]
+    elementos += [banner, Spacer(1, 18), Paragraph(es_o_en("Hallazgos y recomendaciones", "Findings and recommendations"), est["seccion"])]
 
     if not amenazas:
-        elementos.append(Paragraph("No se encontraron puertos abiertos en el rango analizado.", est["cuerpo"]))
+        elementos.append(Paragraph(es_o_en("No se encontraron puertos abiertos en el rango analizado.",
+                                           "No open ports were found in the scanned range."), est["cuerpo"]))
     else:
         for i, a in enumerate(amenazas, 1):
-            fila_titulo = Table([[Paragraph(f"{i}. Puerto {a['puerto']}/{a['protocolo']} ({a['servicio']}) — {a['nombre']}", est["hallazgo_titulo"])]], colWidths=[doc.width])
+            fila_titulo = Table([[Paragraph(f"{i}. {es_o_en('Puerto', 'Port')} {a['puerto']}/{a['protocolo']} ({a['servicio']}) — {a['nombre']}", est["hallazgo_titulo"])]], colWidths=[doc.width])
             fila_titulo.setStyle(TableStyle([
                 ("LEFTPADDING", (0, 0), (-1, -1), 10), ("TOPPADDING", (0, 0), (-1, -1), 8), ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
                 ("LINEBEFORE", (0, 0), (0, -1), 2.5, COLOR_NIVEL_HEX[a["nivel"]]),
             ]))
             elementos.append(fila_titulo)
 
-            etiqueta = Paragraph(f'<font color="{COLOR_NIVEL_HEXSTR[a["nivel"]]}">{ETIQUETA_NIVEL[a["nivel"]].upper()}</font>', est["etiqueta"])
-            cuerpo = Table([[etiqueta], [Paragraph(f"<b>Amenaza:</b> {a['amenaza']}", est["cuerpo"])],
-                             [Paragraph("Recomendaciones:", est["sol_label"])]], colWidths=[doc.width])
+            etiqueta = Paragraph(f'<font color="{COLOR_NIVEL_HEXSTR[a["nivel"]]}">{_nivel_texto(a["nivel"]).upper()}</font>', est["etiqueta"])
+            cuerpo = Table([[etiqueta], [Paragraph(f"<b>{es_o_en('Amenaza', 'Threat')}:</b> {a['amenaza']}", est["cuerpo"])],
+                             [Paragraph(f"{es_o_en('Recomendaciones', 'Recommendations')}:", est["sol_label"])]], colWidths=[doc.width])
             cuerpo.setStyle(TableStyle([
                 ("LEFTPADDING", (0, 0), (-1, -1), 10), ("TOPPADDING", (0, 0), (-1, -1), 1), ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
                 ("LINEBEFORE", (0, 0), (0, -1), 2.5, COLOR_NIVEL_HEX[a["nivel"]]),
@@ -339,8 +446,12 @@ def generar_reporte_pdf(resultado: dict, amenazas: list, ruta_pdf: str = None) -
             elementos += [items_tabla, Spacer(1, 8)]
 
     elementos += [Spacer(1, 10), HRFlowable(width="100%", color=colors.HexColor("#DDE5EC"), thickness=1), Spacer(1, 8),
-                  Paragraph("Informe generado automáticamente por el Analizador de Vulnerabilidades Web. "
-                            "Comparta este documento con el equipo responsable de la infraestructura.", est["footer"])]
+                  Paragraph(es_o_en(
+                      "Informe generado automáticamente por el Analizador de Vulnerabilidades Web. "
+                      "Comparta este documento con el equipo responsable de la infraestructura.",
+                      "Report automatically generated by the Web Vulnerability Analyzer. "
+                      "Share this document with the infrastructure team.",
+                  ), est["footer"])]
 
     doc.build(elementos)
     datos_pdf = buffer.getvalue()

@@ -6,10 +6,10 @@ from models import history
 from models.i18n import t, es_o_en
 
 _MODULO_LABEL = {
-    "sqli": t("🔍 Inyección SQL"),
-    "load": t("⚡ Carga"),
-    "audit": t("🛡️ Auditoría"),
-    "port": t("🔌 Puertos"),
+    "sqli": "🔍 Inyección SQL",
+    "load": "⚡ Carga",
+    "audit": "🛡️ Auditoría",
+    "port": "🔌 Puertos",
 }
 
 
@@ -27,7 +27,7 @@ def mostrar_historial(username: str):
     with st.expander(t("🕘 Historial reciente ({}):").format(len(items)), expanded=False):
         for it in items:
             fecha = str(it.get("created_at", ""))[:16].replace("T", " ")
-            modulo = _MODULO_LABEL.get(it.get("modulo", ""), it.get("modulo", ""))
+            modulo = t(_MODULO_LABEL.get(it.get("modulo", ""), it.get("modulo", "")))
             score = it.get("score")
             score_txt = f" · {score}" if score not in (None, "") else ""
             st.markdown(f"**{modulo}**{score_txt}")

@@ -120,7 +120,7 @@ def crear_usuario(username: str, password_hash: str, salt: str,
     if cli is None:
         loc = _local()
         if loc is None:
-            return False, "Base de datos no configurada."
+            return False, t("Base de datos no configurada.")
         return loc.crear_usuario(username, password_hash, salt, iteraciones, algo)
     try:
         cli.table("app_users").insert({

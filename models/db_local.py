@@ -13,6 +13,8 @@ import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 
+from models.i18n import t
+
 RUTA_DB = Path(__file__).resolve().parents[1] / "data" / "vulnweb.db"
 
 _ESQUEMA = """
@@ -100,7 +102,7 @@ def crear_usuario(username: str, password_hash: str, salt: str,
                   iteraciones: int = 200_000, algo: str = "pbkdf2_sha256"):
     clave = (username or "").strip().lower()
     if not clave:
-        return False, "Falta el nombre de usuario."
+        return False, t("Falta el nombre de usuario.")
     try:
         with _conexion() as con:
             con.execute(
@@ -110,9 +112,9 @@ def crear_usuario(username: str, password_hash: str, salt: str,
             )
         return True, ""
     except sqlite3.IntegrityError:
-        return False, "El usuario ya existe."
+        return False, t("El usuario ya existe.")
     except Exception as e:  # pragma: no cover - fallo de disco/permisos
-        return False, f"No se pudo crear el usuario: {str(e)[:160]}"
+        return False, t("No se pudo crear el usuario: {}").format(str(e)[:160])
 
 
 def actualizar_credenciales(username: str, password_hash: str, salt: str,

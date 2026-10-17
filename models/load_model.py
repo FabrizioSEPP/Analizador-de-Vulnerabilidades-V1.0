@@ -25,7 +25,7 @@ class LoadModel:
         ultimo_nivel_estable = 0
 
         if callback:
-            callback(0.05, "Midiendo latencia base...")
+            callback(0.05, _t("Midiendo latencia base..."))
 
         response_base, tiempo_base, error_base = hacer_peticion(url, timeout=self.timeout)
 
@@ -43,7 +43,8 @@ class LoadModel:
         for i, concurrencia in enumerate(NIVELES_CONCURRENCIA):
             progreso = (i + 0.5) / (total_niveles + 1)
             if callback:
-                callback(progreso, f"Nivel {i+1}/{total_niveles}: concurrencia={concurrencia}")
+                callback(progreso, _t("Nivel {}/{}: concurrencia={}").format(
+                    i + 1, total_niveles, concurrencia))
 
             resultados = self._ejecutar_nivel(url, concurrencia)
 

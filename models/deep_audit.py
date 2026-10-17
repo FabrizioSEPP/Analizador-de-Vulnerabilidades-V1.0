@@ -123,7 +123,7 @@ def _probar_archivos(base: str) -> list:
         except Exception:
             continue
         hallazgos.append({
-            "tipo": "archivo_expuesto", "descripcion": f"{descripcion}: /{ruta}",
+            "tipo": "archivo_expuesto", "descripcion": f"{t(descripcion)}: /{ruta}",
             "detalle": t("Accesible en {} (HTTP {}).").format(url, resp.status_code),
             "severidad": severidad,
             "remediacion": t("Eliminar o restringir el acceso a este recurso."),
@@ -167,7 +167,11 @@ def _dedupe(errores: list) -> list:
     for e in vistos.values():
         paginas = e.pop("_paginas", set())
         if len(paginas) > 1:
-            e["detalle"] = f"{e.get('detalle', '')} (presente en {len(paginas)} páginas)"
+            sufijo = es_o_en(
+                f"(presente en {len(paginas)} páginas)",
+                f"(present in {len(paginas)} pages)",
+            )
+            e["detalle"] = f"{e.get('detalle', '')} {sufijo}"
         resultado.append(e)
     return resultado
 
@@ -192,7 +196,7 @@ def auditoria_profunda(url: str, max_paginas: int = 15, profundidad: int = 2, ca
         info = {"url": pagina["url"], "status": pagina["status"],
                 "titulo": pagina.get("titulo", ""), "hallazgos": 0}
         if pagina["status"] == 0:
-            info["nota"] = pagina.get("error", "sin respuesta")
+            info["nota"] = pagina.get("error", t("sin respuesta"))
             paginas.append(info)
             continue
         try:

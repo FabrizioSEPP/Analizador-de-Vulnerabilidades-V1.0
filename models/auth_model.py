@@ -11,7 +11,7 @@ PBKDF2_ITERATIONS = 200_000
 MIN_USERNAME = 3
 MIN_PASSWORD = 8
 
-SIN_BD = t("Base de datos no configurada.")
+SIN_BD = "Base de datos no configurada."
 
 
 # ------------------------------------------------------------------ hashing
@@ -54,7 +54,7 @@ def register(username: str, password: str) -> tuple:
     if error:
         return False, error
     if not db.hay_base_datos():
-        return False, SIN_BD
+        return False, t(SIN_BD)
     if db.obtener_usuario(username):
         return False, t("El usuario ya existe.")
 
@@ -68,7 +68,7 @@ def login(username: str, password: str) -> tuple:
     if not username or not password:
         return False, t("Usuario y contraseña son obligatorios.")
     if not db.hay_base_datos():
-        return False, SIN_BD
+        return False, t(SIN_BD)
 
     user = db.obtener_usuario(username)
     if not user:
