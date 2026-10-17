@@ -1,12 +1,17 @@
 import plotly.graph_objects as go
 import pandas as pd
 import streamlit as st
+import html as _html
 from views.components import ui_sqli_options
 from models.i18n import t, es_o_en
 
 from models import history
 from models.metrics import nivel_riesgo
 from models.load_model import DURACION_MAXIMA_POR_NIVEL
+from models.report_builder import (
+    construir_informe, etiqueta_clasificacion, etiqueta_modulo, etiqueta_severidad,
+    informe_markdown, informe_pdf, nombre_informe,
+)
 from views.components import (
     colores_actuales, kpi_grid, section_header, tabla,
     ui_audit_options, ui_authorization_check, ui_internal_network_toggle,
@@ -14,7 +19,6 @@ from views.components import (
 )
 from models.port_scanner import PESO_NIVEL
 from models.risk_score import normalize_severity
-from models.i18n import t, es_o_en
 
 _SEV_KEY = {"Crítica": "crit", "Alta": "high", "Media": "med", "Baja": "low", "Info": "info"}
 _NIVEL_COLOR = {"alto": "crit", "medio": "med", "bajo": "ok"}
@@ -377,6 +381,223 @@ def mostrar_dashboard(registros: list, supabase_configurado: bool):
     st.caption(f"Almacenamiento de historial: Supabase {estado_datos}.")
 
 
+# ------------------------------------------------------- informe ejecutivo
+_CAMPOS_INFORME = ("id", "modulo", "url", "score", "nivel", "total_hallazgos", "created_at")
+
+
+@st.cache_data(ttl=90, show_spinner=False)
+def _informe_cache(firma: tuple, idioma: str) -> dict:
+    """Construye (y cachea) el informe a partir de una firma serializable."""
+    registros = [dict(zip(_CAMPOS_INFORME, fila)) for fila in firma]
+    return construir_informe(registros)
+
+
+@st.cache_data(ttl=90, show_spinner=False)
+def _pdf_cache(firma: tuple, idioma: str) -> bytes:
+    """Evita regenerar el PDF en cada rerun de Streamlit."""
+    return informe_pdf(_informe_cache(firma, idioma))
+
+
+def _mostrar_reporte_ejecutivo(registros: list):
+    """Vista previa del informe ejecutivo y sus exportaciones PDF/Markdown."""
+    idioma = st.session_state.get("idioma", "es")
+    firma = tuple(tuple(r.get(c) for c in _CAMPOS_INFORME) for r in registros)
+    try:
+        informe = _informe_cache(firma, idioma)
+    except Exception as exc:  # nunca romper la sección por un fallo de datos
+        st.error(es_o_en("No se pudo construir el informe: ", "Could not build the report: ") + str(exc))
+        return
+
+    conteo = informe["conteo"]
+    score = informe["score"]
+    kpi_grid([
+        {"label": es_o_en("Análisis incluidos", "Assessments included"),
+         "value": len(informe["analisis"]), "color": "primary"},
+        {"label": es_o_en("Objetivos", "Targets"),
+         "value": len(informe["objetivos"]), "color": "low"},
+        {"label": es_o_en("Hallazgos", "Findings"),
+         "value": informe["total_hallazgos"], "color": "high"},
+        {"label": es_o_en("Críticos", "Critical"),
+         "value": conteo.get("CRÍTICO", 0), "color": "crit"},
+        {"label": es_o_en("Altos", "High"),
+         "value": conteo.get("ALTO", 0), "color": "high"},
+        {"label": es_o_en("Puntuación media", "Average score"),
+         "value": f"{score}/100" if score is not None else "—",
+         "sub": etiqueta_clasificacion(informe["clasificacion"]), "color": "ok"},
+    ])
+
+    st.markdown(
+        '<div style="background:var(--surface);border:1px solid var(--border);'
+        'border-left:4px solid var(--primary-2);border-radius:12px;'
+        'padding:16px 18px;margin:10px 0 14px;color:var(--text);'
+        'font-size:.9rem;line-height:1.6">'
+        f'<div>{_html.escape(informe["resumen"])}</div>'
+        f'<div style="margin-top:10px;color:var(--muted)">'
+        f'<b>{es_o_en("Recomendación", "Recommendation")}:</b> '
+        f'{_html.escape(informe["recomendacion"])}</div></div>',
+        unsafe_allow_html=True,
+    )
+
+    # Exportaciones. El PDF se arma en memoria; si reportlab falla, la vista
+    # sigue disponible y se avisa al usuario.
+    pdf_bytes = None
+    try:
+        pdf_bytes = _pdf_cache(firma, idioma)
+    except Exception as exc:
+        st.warning(es_o_en(
+            f"No se pudo generar el PDF: {exc}. Las demás exportaciones siguen disponibles.",
+            f"Could not generate the PDF: {exc}. Other exports remain available.",
+        ))
+    markdown_bytes = informe_markdown(informe).encode("utf-8")
+    csv_bytes = pd.DataFrame([{
+        es_o_en("Fecha", "Date"): item["fecha"],
+        es_o_en("Módulo", "Module"): etiqueta_modulo(item["modulo"]),
+        es_o_en("Objetivo", "Target"): item["objetivo"],
+        es_o_en("Hallazgos", "Findings"): item["hallazgos"],
+        es_o_en("Nivel", "Level"): item["nivel"],
+        "Score": item["score"] if item["score"] is not None else "",
+    } for item in informe["analisis"]]).to_csv(index=False).encode("utf-8-sig")
+
+    col_pdf, col_md, col_csv = st.columns(3)
+    with col_pdf:
+        st.download_button(
+            "⬇️ " + es_o_en("Descargar PDF", "Download PDF"),
+            data=pdf_bytes or b"",
+            file_name=nombre_informe(informe, "pdf"),
+            mime="application/pdf",
+            use_container_width=True,
+            type="primary",
+            key="report_pdf",
+            disabled=pdf_bytes is None,
+        )
+    with col_md:
+        st.download_button(
+            "⬇️ " + es_o_en("Descargar Markdown", "Download Markdown"),
+            data=markdown_bytes,
+            file_name=nombre_informe(informe, "md"),
+            mime="text/markdown",
+            use_container_width=True,
+            key="report_md",
+        )
+    with col_csv:
+        st.download_button(
+            "⬇️ " + es_o_en("Descargar CSV", "Download CSV"),
+            data=csv_bytes,
+            file_name="reporte_vulnweb.csv",
+            mime="text/csv",
+            use_container_width=True,
+            key="report_csv",
+        )
+    st.caption(es_o_en(
+        "El PDF incluye portada, resumen ejecutivo, indicadores, distribución, "
+        "hallazgos priorizados, plan de acción y anexos. El Markdown contiene "
+        "el detalle completo y puede editarse.",
+        "The PDF includes a cover, executive summary, indicators, distribution, "
+        "prioritized findings, action plan and appendices. The Markdown contains "
+        "the full detail and can be edited.",
+    ))
+
+    col_sev, col_plan = st.columns([1, 1.5])
+    with col_sev:
+        section_header(
+            es_o_en("Distribución por severidad", "Severity distribution"),
+            es_o_en("Peso de cada nivel sobre el total", "Share of each level"),
+            "📊",
+        )
+        total = informe["total_hallazgos"] or 1
+        tabla(pd.DataFrame([{
+            es_o_en("Severidad", "Severity"): etiqueta_severidad(sev),
+            es_o_en("Hallazgos", "Findings"): cantidad,
+            "%": f"{cantidad * 100 / total:.0f}%",
+        } for sev, cantidad in conteo.items()]))
+
+    with col_plan:
+        section_header(
+            es_o_en("Plan de acción recomendado", "Recommended action plan"),
+            es_o_en("Prioridades y plazos sugeridos", "Suggested priorities and timeframes"),
+            "🎯",
+        )
+        for numero, item in enumerate(informe["plan"], start=1):
+            st.markdown(
+                f"**{numero}. [{item['prioridad']}]** {item['accion']}  \n"
+                f"_{es_o_en('Plazo', 'Timeframe')}: {item['plazo']}_"
+            )
+
+    section_header(
+        es_o_en("Hallazgos prioritarios", "Priority findings"),
+        es_o_en("Agrupados por objetivo, severidad y control", "Grouped by target, severity and control"),
+        "🔎",
+    )
+    if informe["hallazgos"]:
+        visibles = informe["hallazgos"][:25]
+        tabla(pd.DataFrame([{
+            es_o_en("Severidad", "Severity"): etiqueta_severidad(h["severidad"]),
+            es_o_en("Objetivo", "Target"): h["objetivo"],
+            es_o_en("Hallazgo", "Finding"): h["hallazgo"],
+            "OWASP": h["owasp"],
+            "CVSS": h["cvss"] if h["cvss"] is not None else "—",
+            es_o_en("Veces", "Times"): h["veces"],
+            es_o_en("Remediación", "Remediation"): h["remediacion"] or "—",
+        } for h in visibles]))
+        restantes = len(informe["hallazgos"]) - len(visibles)
+        st.caption(es_o_en(
+            f"Mostrando {len(visibles)} de {len(informe['hallazgos'])} hallazgos agrupados."
+            + (" El PDF incluye 40 y el Markdown el detalle completo." if restantes else ""),
+            f"Showing {len(visibles)} of {len(informe['hallazgos'])} grouped findings."
+            + (" The PDF includes 40 and the Markdown the full detail." if restantes else ""),
+        ))
+    else:
+        st.info(es_o_en(
+            "No hay detalle individual de hallazgos para este periodo.",
+            "No individual finding detail is available for this period.",
+        ))
+
+    with st.expander(es_o_en("Alcance, metodología y anexo de análisis", "Scope, methodology and assessment appendix")):
+        st.markdown(es_o_en(
+            "Las pruebas se ejecutaron exclusivamente sobre sistemas autorizados, con un "
+            "enfoque de pentesting ético y sin acciones destructivas. Los resultados "
+            "reflejan los análisis guardados en el periodo indicado y no garantizan la "
+            "ausencia de vulnerabilidades no detectadas.",
+            "Assessments were run exclusively against authorized systems, following an "
+            "ethical pentesting approach without destructive actions. Results reflect "
+            "the assessments stored during the reported period and do not guarantee the "
+            "absence of undetected vulnerabilities.",
+        ))
+        for modulo in informe["modulos"]:
+            st.markdown(
+                f"- **{etiqueta_modulo(modulo['clave'])}** ({modulo['cantidad']}): "
+                f"{modulo['descripcion']}"
+            )
+
+        section_header(
+            es_o_en("Objetivos analizados", "Analyzed targets"),
+            es_o_en("Último análisis y hallazgos acumulados", "Latest assessment and accumulated findings"),
+            "🌐",
+        )
+        tabla(pd.DataFrame([{
+            es_o_en("Objetivo", "Target"): item["objetivo"],
+            es_o_en("Último análisis", "Latest assessment"): str(item["ultimo"]).replace("T", " ")[:16],
+            es_o_en("Módulo", "Module"): etiqueta_modulo(item["modulo"]),
+            es_o_en("Hallazgos", "Findings"): item["hallazgos"],
+            es_o_en("Nivel", "Level"): item["nivel"] or "—",
+            "Score": item["score"] if item["score"] is not None else "—",
+        } for item in informe["objetivos"]]))
+
+        section_header(
+            es_o_en("Análisis incluidos", "Included assessments"),
+            es_o_en("Trazabilidad del informe", "Report traceability"),
+            "🗂️",
+        )
+        tabla(pd.DataFrame([{
+            es_o_en("Fecha", "Date"): str(item["fecha"]).replace("T", " ")[:16],
+            es_o_en("Módulo", "Module"): etiqueta_modulo(item["modulo"]),
+            es_o_en("Objetivo", "Target"): item["objetivo"],
+            es_o_en("Hallazgos", "Findings"): item["hallazgos"],
+            es_o_en("Nivel", "Level"): item["nivel"] or "—",
+            "Score": item["score"] if item["score"] is not None else "—",
+        } for item in informe["analisis"]]))
+
+
 def mostrar_seccion(seccion: str, registros: list, supabase_configurado: bool):
     nombres = {
         "vulnerabilities": "Vulnerabilidades",
@@ -389,8 +610,18 @@ def mostrar_seccion(seccion: str, registros: list, supabase_configurado: bool):
         st.info("Selecciona una sección del menú.")
         return
 
-    registros = [item for item in (registros or []) if item.get("modulo") != "sqli"]
-    section_header(nombres[seccion], "Datos disponibles del historial de análisis", "◈")
+    if seccion != "reports":
+        registros = [item for item in (registros or []) if item.get("modulo") != "sqli"]
+    else:
+        registros = list(registros or [])
+    subtitulos = {
+        "reports": "Informe ejecutivo, plan de acción y exportaciones",
+    }
+    section_header(
+        nombres[seccion],
+        subtitulos.get(seccion, "Datos disponibles del historial de análisis"),
+        "◈",
+    )
 
     if seccion == "vulnerabilities":
         filas = []
@@ -499,22 +730,7 @@ def mostrar_seccion(seccion: str, registros: list, supabase_configurado: bool):
 
     elif seccion == "reports":
         if registros:
-            informe = pd.DataFrame([{
-                "fecha": registro.get("created_at", ""),
-                "modulo": registro.get("modulo", ""),
-                "objetivo": registro.get("url", ""),
-                "hallazgos": int(registro.get("total_hallazgos") or 0),
-                "nivel": registro.get("nivel") or "",
-                "score": registro.get("score") if registro.get("score") is not None else "",
-            } for registro in registros])
-            st.download_button(
-                "Descargar CSV",
-                data=informe.to_csv(index=False).encode("utf-8-sig"),
-                file_name="reporte_vulnweb.csv",
-                mime="text/csv",
-                key="download_vulnweb_report",
-            )
-            tabla(informe)
+            _mostrar_reporte_ejecutivo(registros)
         else:
             st.info("No hay análisis guardados para generar un reporte.")
 
