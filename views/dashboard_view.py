@@ -13,6 +13,7 @@ from views.components import (
     ui_theme_selector,
 )
 from models.port_scanner import PESO_NIVEL
+from models.risk_score import normalize_severity
 from models.i18n import t, es_o_en
 
 _SEV_KEY = {"Crítica": "crit", "Alta": "high", "Media": "med", "Baja": "low", "Info": "info"}

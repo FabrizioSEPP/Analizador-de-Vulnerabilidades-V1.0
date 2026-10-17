@@ -300,7 +300,6 @@ CSS_STYLES = """
         background: #10274b;
         font-size: 21px;
     }
-    }
     .sidebar-profile-name {
         color: #e6edf7;
         font-size: 1rem;

@@ -11,6 +11,7 @@ from models.risk_score import (
 )
 from models.phishing_ml import detectar_phishing
 from models.remediation import get_remediation
+from models.i18n import es_o_en
 from models.port_scanner import (
     puntuacion_seguridad, nivel_general, resumen_por_nivel,
     generar_reporte_markdown, generar_reporte_pdf, EMOJI_NIVEL, ETIQUETA_NIVEL,
